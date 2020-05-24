@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -eux
+
+mkdir -p /wp/wp-content/mu-plugins
+cp -R /src/wp-redis /wp/wp-content/mu-plugins

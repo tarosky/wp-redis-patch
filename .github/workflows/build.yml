@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+    - issue/*
+    - dev/harai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Get WP_REDIS_VERSION
+      run: echo "::set-env name=WP_REDIS_VERSION::$(< env/wp_redis_version)"
+    - name: Build docker image
+      run: docker-compose -f test/docker-compose.yml build
+    - name: Run PHPUnit inside Docker Compose
+      run: docker-compose -f test/docker-compose.yml run php
+    - name: Create package
+      run: script/package
+    - uses: actions/upload-artifact@v2
+      with:
+        name: artifact
+        path: work/wp-redis-patch.zip
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/dev/harai'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifact
+    - name: Show artifacts
+      run: ls -laR ./
+    - name: Generate build number
+      uses: einaregilsson/build-number@v2
+      with:
+        token: ${{secrets.GITHUB_TOKEN}}
+    - name: Print new build number
+      run: echo "Build number is $BUILD_NUMBER"
+    - id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        tag_name: build-${{env.BUILD_NUMBER}}
+        release_name: Build ${{env.BUILD_NUMBER}}
+        draft: false
+        prerelease: false
+    - uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        upload_url: ${{steps.create_release.outputs.upload_url}}
+        asset_path: ./wp-redis-patch.zip
+        asset_name: wp-redis-patch.build-${{env.BUILD_NUMBER}}.zip
+        asset_content_type: application/zip

@@ -1,0 +1,4 @@
+braceStyle: 1tbs
+phpVersion: '7.4'
+trailingCommaPHP: true
+printWidth: 90

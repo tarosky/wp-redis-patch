@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  pull_request:
+    branches:
+    - master
   push:
     branches:
     - master
@@ -25,7 +28,8 @@ jobs:
         path: work/wp-redis-patch.zip
   release:
     needs: build
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/issue/2'
+    # if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/download-artifact@v2
@@ -37,6 +41,7 @@ jobs:
       uses: einaregilsson/build-number@v2
       with:
         token: ${{secrets.GITHUB_TOKEN}}
+        prefix: build_number_generator
     - name: Print new build number
       run: echo "Build number is $BUILD_NUMBER"
     - id: create_release

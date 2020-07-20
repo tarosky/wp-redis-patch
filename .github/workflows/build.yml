@@ -26,6 +26,7 @@ jobs:
       with:
         name: artifact
         path: work/wp-redis-patch.zip
+
   release:
     needs: build
     if: github.ref == 'refs/heads/issue/2'

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -eux
+
+version="$1"
+
+tmpfile="$(mktemp)"
+tmpdir="$(mktemp -d)"
+
+curl -fsSL "https://github.com/pantheon-systems/wp-redis/archive/v$version.zip" > "$tmpfile"
+unzip "$tmpfile" -d "$tmpdir"
+mkdir -p /src/
+mv "$tmpdir/wp-redis-$version" "/src/wp-redis"
+rm "$tmpfile"
+rmdir "$tmpdir"

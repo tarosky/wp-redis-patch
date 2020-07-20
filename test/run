@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -eu
+
+wp_redis_test=test/test/wp-redis/CacheTestCase.php
+
+wait-for-it -q redis:6379
+
+tmpfile="$(mktemp)"
+cp /src/wp-redis/tests/phpunit/test-cache.php "$tmpfile"
+patch -s "$tmpfile" "$wp_redis_test.patch"
+if [ ! -e "$wp_redis_test" ] || [ "$(< "$tmpfile")" != "$(< "$wp_redis_test")" ]; then
+  cp "$tmpfile" "$wp_redis_test"
+  chmod 666 "$wp_redis_test"
+fi
+
+exec phpunit --log-junit /code/work/junit.xml --bootstrap test/config/phpredis.php test/test

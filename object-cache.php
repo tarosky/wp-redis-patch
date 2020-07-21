@@ -12,6 +12,8 @@ require_once WP_REDIS_PLUGIN_DIR . '/object-cache.php';
  * Mirrors discussion on Trac: https://core.trac.wordpress.org/ticket/20875#comment:33
  *
  * @param array $groups Array of groups and keys to retrieve
+ * @param bool $force Optional. Whether to force an update of the local cache
+ *                    from the persistent cache. Default false.
  *
  * @global WP_Object_Cache $wp_object_cache
  *
@@ -20,10 +22,10 @@ require_once WP_REDIS_PLUGIN_DIR . '/object-cache.php';
  *     ['group0' => ['key0' => 'value0', 'key1' => 'value1', 'key2' => 'value2'], 'group1' => ['key0' => 'value0']]
  *     Values not found in cache will be missing along with the corresponding keys.
  */
-function wp_cache_tarosky_get_multiple($groups) {
+function wp_cache_tarosky_get_multiple($groups, $force = false) {
     global $wp_object_cache;
 
-    return $wp_object_cache->get_multiple($groups);
+    return $wp_object_cache->normalized_get_multiple($groups, $force);
 }
 
 if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
@@ -495,7 +497,18 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $results;
     }
 
-    public function get_multiple($groups) {
+    public function get_multiple($keys, $group = 'default', $force = false) {
+        $normal_res = $this->normalized_get_multiple([$group => $keys], $force);
+        $group_kv = array_key_exists($group, $normal_res) ? $normal_res[$group] : [];
+
+        $result = [];
+        foreach ($keys as $key) {
+            $result[$key] = array_key_exists($key, $group_kv) ? $group_kv[$key] : false;
+        }
+        return $result;
+    }
+
+    public function normalized_get_multiple($groups, $force = false) {
         $get_from_cache = function ($key, $group) {
             $found = $this->_isset_internal($key, $group);
 
@@ -532,7 +545,7 @@ class TaroskyObjectCache extends WP_Object_Cache {
             }
 
             foreach ($keys as $key) {
-                if ($this->_isset_internal($key, $group)) {
+                if (!$force && $this->_isset_internal($key, $group)) {
                     $this->cache_hits += 1;
                     $cache[$group][$key] = $this->_get_internal($key, $group);
                     continue;

@@ -1,7 +1,8 @@
 <?php
 
-// Race condition occurred during forcibly wp_cache_get()-ing an existing managed value.
-class GetManagedRacingForceTest extends ObjectCacheTestCase {
+// Race condition occurred during forcibly wp_cache_tarosky_get_multiple() to
+// an existing managed versioned value.
+class GetMManagedVersionedRacingForceTest extends ObjectCacheTestCase {
     public function setUp(): void {
         parent::setUp();
 
@@ -12,12 +13,12 @@ class GetManagedRacingForceTest extends ObjectCacheTestCase {
     }
 
     protected function examined() {
-        return wp_cache_get(self::KEY, self::GROUP, true);
+        return wp_cache_tarosky_get_multiple([self::GROUP => [self::KEY]], true);
     }
 
-    use TestExamGetSucceeds;
-    use TestRedisValExists; // Not changed
-    use TestRedisVersionDefeated; // Not changed
+    use TestExamGetMVer;
+    use TestRedisValExists;
+    use TestRedisVersionDefeated;
     use TestInternalVersionDefeated;
     use TestInternalValExists;
     use ConnectionTests;

@@ -8,9 +8,6 @@ tmp_new_oc="$(mktemp)"
 cp /src/wp-redis/object-cache.php "$tmp_new_oc"
 sed -i 's/new WP_Object_Cache/new TaroskyObjectCache/g' "$tmp_new_oc"
 
-ls -la "$tmp_new_oc"
-ls -la /src/wp-redis/object-cache.php
-
 # diff returns 1 if different.
 set +e
 diff -u \

@@ -3,4 +3,5 @@
 set -eu
 
 WP_REDIS_VERSION="$(< env/wp_redis_version)" \
+REDIS_VERSION=5 \
   exec docker-compose -f test/docker-compose.yml run php

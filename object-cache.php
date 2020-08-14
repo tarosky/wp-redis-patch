@@ -748,6 +748,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
         $this->flush_cache_versions();
         return parent::flush($redis);
     }
+
+    public function _call_redis($method, ...$args) {
+        return parent::_call_redis($method, ...$args);
+    }
 }
 
 TaroskyObjectCache::initialize();

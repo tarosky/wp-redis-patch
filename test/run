@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -eux
 
 # Generate a patch for pantheon-systems/wp-redis.
 # This is not a part of testing, but just for convenience.

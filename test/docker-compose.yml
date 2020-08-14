@@ -11,4 +11,4 @@ services:
     depends_on:
     - redis
   redis:
-    image: redis:5-alpine
+    image: redis:4-alpine

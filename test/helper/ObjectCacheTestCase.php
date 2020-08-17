@@ -36,11 +36,9 @@ abstract class ObjectCacheTestCase extends TestCase {
     }
 
     public function setUp(): void {
-        global $wp_object_cache;
+        global $wp_object_cache, $redis_server_default_versioning_keys, $redis_server_versioning_keys;
         self::$redis->flushdb();
-        TaroskyObjectCache::set_versioning_keys(
-            $this->next_versioning_keys ?? ['default' => ['alloptions' => true]],
-        );
+        $redis_server_versioning_keys = $this->next_versioning_keys ?? $redis_server_default_versioning_keys;
         $this->next_versioning_keys = null;
         $wp_object_cache = new TaroskyObjectCache();
         $this->old_version = self::UNUSED_DUMMY_VERSION;

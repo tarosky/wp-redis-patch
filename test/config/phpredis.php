@@ -8,6 +8,10 @@ define('WP_CACHE_VERSION_KEY_SALT', 'ocv:');
 define('TAROSKY_WP_REDIS_PATCH_DEBUG', false);
 define('TAROSKY_WP_REDIS_PATCH_LUA_DIR', getcwd() . '/lua');
 
+$redis_server_default_versioning_keys = [
+    'default' => [ 'alloptions' => true ],
+];
+
 require_once '/code/object-cache.php';
 require_once WP_REDIS_PLUGIN_DIR . '/wp-redis.php';
 

@@ -166,13 +166,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $redis_client;
     }
 
-    private static $versioning = ['default' => ['alloptions' => true]];
     private $versioned_redis_keys = [];
     private $versions = [];
-
-    public static function set_versioning_keys($keys) {
-        self::$versioning = $keys;
-    }
 
     public static function encode_redis_string($data) {
         return is_numeric($data) && intval($data) === $data
@@ -208,7 +203,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
     }
 
     private function init_versioned_redis_keys() {
-        foreach (self::$versioning as $gkey => $group) {
+        global $redis_server_versioning_keys;
+        foreach ($redis_server_versioning_keys as $gkey => $group) {
             foreach (array_keys($group) as $key) {
                 $this->versioned_redis_keys[$this->_key($key, $gkey)] = true;
             }

@@ -55,8 +55,6 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $this->_call_redis('isConnected');
     }
 
-    private $raw_client;
-
     private static function debug($message, ...$params) {
         if (defined('TAROSKY_WP_REDIS_PATCH_DEBUG') && TAROSKY_WP_REDIS_PATCH_DEBUG) {
             error_log("[TaroskyObjectCache debug]$message: " . var_export($params, true));
@@ -131,7 +129,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $prefix = '';
         }
 
-        return WP_CACHE_KEY_SALT . json_encode([$prefix, $group, $key]);
+        return WP_CACHE_KEY_SALT . json_encode(
+            [strval($prefix), strval($group), strval($key)]);
     }
 
     // This function is primarily for testing.
@@ -247,7 +246,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $prefix = $this->blog_prefix;
         }
 
-        return WP_CACHE_VERSION_KEY_SALT . json_encode([$prefix, $group, $key]);
+        return WP_CACHE_VERSION_KEY_SALT . json_encode(
+            [strval($prefix), strval($group), strval($key)]);
     }
 
     // Versions are expressed as UUID v4.

@@ -129,8 +129,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $prefix = '';
         }
 
-        return WP_CACHE_KEY_SALT . json_encode(
-            [strval($prefix), strval($group), strval($key)]);
+        return WP_CACHE_KEY_SALT .
+            json_encode([strval($prefix), strval($group), strval($key)]);
     }
 
     // This function is primarily for testing.
@@ -210,6 +210,18 @@ class TaroskyObjectCache extends WP_Object_Cache {
         }
     }
 
+    // Ignoring works as if the corresponding cache weren't there.
+    private static function is_ignored($key, $group) {
+        global $redis_server_ignored_keys;
+        if (!$redis_server_ignored_keys) {
+            $redis_server_ignored_keys = [];
+        }
+        $iks = $redis_server_ignored_keys;
+        return array_key_exists($group, $iks) &&
+            array_key_exists($key, $iks[$group]) &&
+            $iks[$group][$key];
+    }
+
     public function __construct() {
         parent::__construct();
         $this->init_versioned_redis_keys();
@@ -246,8 +258,8 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $prefix = $this->blog_prefix;
         }
 
-        return WP_CACHE_VERSION_KEY_SALT . json_encode(
-            [strval($prefix), strval($group), strval($key)]);
+        return WP_CACHE_VERSION_KEY_SALT .
+            json_encode([strval($prefix), strval($group), strval($key)]);
     }
 
     // Versions are expressed as UUID v4.
@@ -335,6 +347,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $group = 'default';
         }
 
+        if ($this->is_ignored($key, $group)) {
+            return true;
+        }
+
         if (!$this->_should_persist($group)) {
             $this->_set_internal($key, $group, self::clone($data));
             return true;
@@ -368,6 +384,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $group = 'default';
         }
 
+        if ($this->is_ignored($key, $group)) {
+            return false;
+        }
+
         if (!$this->_should_persist($group)) {
             return false;
         }
@@ -394,6 +414,11 @@ class TaroskyObjectCache extends WP_Object_Cache {
     public function get($key, $group = 'default', $force = false, &$found = null) {
         if (empty($group)) {
             $group = 'default';
+        }
+
+        if ($this->is_ignored($key, $group)) {
+            $found = false;
+            return false;
         }
 
         try {
@@ -532,6 +557,9 @@ class TaroskyObjectCache extends WP_Object_Cache {
 
             if (!$this->_should_persist($group)) {
                 foreach ($keys as $key) {
+                    if ($this->is_ignored($key, $group)) {
+                        continue;
+                    }
                     list($value, $found) = $get_from_cache($key, $group);
                     if ($found) {
                         $cache[$group][$key] = $value;
@@ -541,6 +569,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
             }
 
             foreach ($keys as $key) {
+                if ($this->is_ignored($key, $group)) {
+                    continue;
+                }
+
                 if (!$force && $this->_isset_internal($key, $group)) {
                     $this->cache_hits += 1;
                     $cache[$group][$key] = $this->_get_internal($key, $group);
@@ -639,6 +671,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $group = 'default';
         }
 
+        if ($this->is_ignored($key, $group)) {
+            return true;
+        }
+
         if (!$this->_should_persist($group)) {
             return false;
         }
@@ -665,6 +701,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
     public function decr($key, $offset = 1, $group = 'default') {
         if (empty($group)) {
             $group = 'default';
+        }
+
+        if ($this->is_ignored($key, $group)) {
+            return false;
         }
 
         $offset = (int) $offset;
@@ -704,6 +744,10 @@ class TaroskyObjectCache extends WP_Object_Cache {
     public function incr($key, $offset = 1, $group = 'default') {
         if (empty($group)) {
             $group = 'default';
+        }
+
+        if ($this->is_ignored($key, $group)) {
+            return false;
         }
 
         $offset = (int) $offset;

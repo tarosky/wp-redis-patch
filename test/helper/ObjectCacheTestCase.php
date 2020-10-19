@@ -12,6 +12,8 @@ abstract class ObjectCacheTestCase extends TestCase {
     protected const VAL = 'sample-value';
     protected const VAL_SUP = 'another-value';
     protected const VAL_SUP_2 = 'yet-another-value';
+    protected const IGN_GROUP = 'ignoredkey';
+    protected const IGN_KEY = 'ignoredgroup';
     protected $old_version;
     protected $next_versioning_keys;
 
@@ -36,10 +38,15 @@ abstract class ObjectCacheTestCase extends TestCase {
     }
 
     public function setUp(): void {
-        global $wp_object_cache, $redis_server_default_versioning_keys, $redis_server_versioning_keys;
+        global $wp_object_cache,
+            $redis_server_default_versioning_keys,
+            $redis_server_versioning_keys,
+            $redis_server_ignored_keys;
         self::$redis->flushdb();
-        $redis_server_versioning_keys = $this->next_versioning_keys ?? $redis_server_default_versioning_keys;
+        $redis_server_versioning_keys =
+            $this->next_versioning_keys ?? $redis_server_default_versioning_keys;
         $this->next_versioning_keys = null;
+        $redis_server_ignored_keys = [$this::IGN_GROUP => [$this::IGN_KEY => true]];
         $wp_object_cache = new TaroskyObjectCache();
         $this->old_version = self::UNUSED_DUMMY_VERSION;
     }
@@ -50,6 +57,19 @@ abstract class ObjectCacheTestCase extends TestCase {
         );
         $this->assertTrue($found);
         $this->assertEquals($expected, $actual);
+    }
+
+    protected function setup_ignored_key() {
+        global $redis_server_ignored_keys;
+
+        $old = $redis_server_ignored_keys;
+        $redis_server_ignored_keys = [];
+        wp_cache_set(self::IGN_KEY, self::VAL, self::IGN_GROUP);
+        $redis_server_ignored_keys = $old;
+    }
+
+    protected function assertRedisNonExistent($key, $group = 'default') {
+        $this->assertFalse(self::$redis->get($this->redis_key($key, $group)));
     }
 
     protected function redis_key($key, $group = 'default') {

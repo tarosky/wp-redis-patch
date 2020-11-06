@@ -12,10 +12,10 @@ class DeleteManagedRacingDeleteTest extends ObjectCacheTestCase {
     }
 
     use ExamineCacheDelete;
-    use TestExamFails;
+    use TestExamSucceeds;
     use TestRedisValNotExist;
-    use TestRedisVersionRenewed; // Updated
-    use TestInternalVersionLatest;
-    use TestInternalValNotExist; // Removed
+    use TestRedisVersionNotExist;
+    use TestInternalVersionNotExist;
+    use TestInternalValNotExist;
     use ConnectionTests;
 }

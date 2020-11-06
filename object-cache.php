@@ -35,7 +35,6 @@ if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
 class TaroskyObjectCache extends WP_Object_Cache {
     private static $lua_scripts = [
         'decr-by-nover' => [],
-        'del' => [],
         'incr-by-nover' => [],
         'set' => [],
     ];
@@ -630,16 +629,9 @@ class TaroskyObjectCache extends WP_Object_Cache {
                 return self::decode_redis_del($this->_call_redis('del', $redis_key)) == 1;
             }
 
-            $new_version = $this->generate_version();
-            $this->set_cache_version($redis_key, $new_version);
-
-            $res = $this->_call_redis(
-                'evalSha',
-                self::$lua_scripts['del']['hash'],
-                [$redis_key, $this->_version_key($key, $group), $new_version],
-                2,
-            );
-            return self::decode_redis_del($res) == 1;
+            $this->clear_cache_version($redis_key);
+            $res = $this->_call_redis('del', [$redis_key, $this->_version_key($key, $group)]);
+            return 0 < self::decode_redis_del($res);
         } finally {
             $this->_unset_internal($key, $group);
         }

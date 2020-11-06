@@ -10,10 +10,10 @@ class ReplaceInexistentRacingTest extends ObjectCacheTestCase {
     }
 
     use ExamineCacheReplace;
-    use TestExamFails;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Updated
-    use TestInternalVersionNotExist;
-    use TestInternalValNotExist; // Not changed
+    use TestExamSucceeds;
+    use TestRedisValExists;
+    use TestRedisVersionRenewed;
+    use TestInternalVersionLatest;
+    use TestInternalValExists;
     use ConnectionTests;
 }

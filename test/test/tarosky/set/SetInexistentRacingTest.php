@@ -11,8 +11,8 @@ class SetInexistentRacingTest extends ObjectCacheTestCase {
 
     use ExamineCacheSet;
     use TestExamFails;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Updated
+    use TestRedisValNotExist;
+    use TestRedisVersionNotExist;
     use TestInternalVersionNotExist;
     use TestInternalValNotExist; // Removed
     use ConnectionTests;

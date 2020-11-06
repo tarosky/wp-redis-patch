@@ -1,0 +1,5 @@
+{
+    "require-dev": {
+        "giorgiosironi/eris": "^0.11.0"
+    }
+}

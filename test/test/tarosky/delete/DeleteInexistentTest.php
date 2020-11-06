@@ -5,8 +5,8 @@ class DeleteInexistentTest extends ObjectCacheTestCase {
     use ExamineCacheDelete;
     use TestExamFails;
     use TestRedisValNotExist;
-    use TestRedisVersionRenewed; // Set
-    use TestInternalVersionLatest;
+    use TestRedisVersionNotExist;
+    use TestInternalVersionNotExist;
     use TestInternalValNotExist;
     use ConnectionTests;
 }

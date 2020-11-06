@@ -13,8 +13,8 @@ class AddManagedRacingTest extends ObjectCacheTestCase {
 
     use ExamineCacheAdd;
     use TestExamFails;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Set
+    use TestRedisValSup2Exists;
+    use TestRedisVersionDefeated;
     use TestInternalVersionNotExist;
     use TestInternalValNotExist; // Removed
     use ConnectionTests;

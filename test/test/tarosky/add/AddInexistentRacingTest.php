@@ -11,8 +11,8 @@ class AddInexistentRacingTest extends ObjectCacheTestCase {
 
     use ExamineCacheAdd;
     use TestExamFails;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Updated
+    use TestRedisValSupExists;
+    use TestRedisVersionDefeated;
     use TestInternalVersionNotExist;
     use TestInternalValNotExist; // Internal cache won't be changed because the data keeps unchanged.
     use ConnectionTests;

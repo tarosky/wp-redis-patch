@@ -15,6 +15,8 @@ $redis_server_default_versioning_keys = [
 require_once '/code/object-cache.php';
 require_once WP_REDIS_PLUGIN_DIR . '/wp-redis.php';
 
+require_once __DIR__ . '/../../vendor/autoload.php';
+
 foreach (glob('/code/test/helper/{,*/}*.php', GLOB_BRACE) as $file) {
     require $file;
 }

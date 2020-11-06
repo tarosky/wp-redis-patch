@@ -16,6 +16,9 @@ abstract class ObjectCacheTestCase extends TestCase {
     protected const IGN_KEY = 'ignoredgroup';
     protected $old_version;
     protected $next_versioning_keys;
+    protected $oc1;
+    protected $oc2;
+    protected $oc3;
 
     public static function encode_redis_string($data) {
         return is_numeric($data) && intval($data) === $data
@@ -48,6 +51,9 @@ abstract class ObjectCacheTestCase extends TestCase {
         $this->next_versioning_keys = null;
         $redis_server_ignored_keys = [$this::IGN_GROUP => [$this::IGN_KEY => true]];
         $wp_object_cache = new TaroskyObjectCache();
+        $this->oc1 = $wp_object_cache;
+        $this->oc2 = new TaroskyObjectCache();
+        $this->oc3 = new TaroskyObjectCache();
         $this->old_version = self::UNUSED_DUMMY_VERSION;
     }
 

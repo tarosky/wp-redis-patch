@@ -10,9 +10,9 @@ class DeleteUnmanagedTest extends ObjectCacheTestCase {
 
     use ExamineCacheDelete;
     use TestExamSucceeds;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Updated
-    use TestInternalVersionLatest;
+    use TestRedisValNotExist;
+    use TestRedisVersionNotExist;
+    use TestInternalVersionNotExist;
     use TestInternalValNotExist;
     use ConnectionTests;
 }

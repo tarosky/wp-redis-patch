@@ -12,10 +12,10 @@ class ReplaceManagedRacingTest extends ObjectCacheTestCase {
     }
 
     use ExamineCacheReplace;
-    use TestExamFails;
-    use TestRedisValNotExist; // Removed
-    use TestRedisVersionRenewed; // Updated
-    use TestInternalVersionNotExist;
-    use TestInternalValNotExist; // Removed
+    use TestExamSucceeds;
+    use TestRedisValExists;
+    use TestRedisVersionRenewed;
+    use TestInternalVersionLatest;
+    use TestInternalValExists;
     use ConnectionTests;
 }

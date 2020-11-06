@@ -26,6 +26,8 @@ if [ ! -e "$wp_redis_test" ] || [ "$(< "$tmp_cache")" != "$(< "$wp_redis_test")"
   chmod 666 "$wp_redis_test"
 fi
 
+composer install -q
+
 wait-for-it -q redis:6379
 
 exec phpunit --log-junit /code/work/junit.xml --bootstrap test/config/phpredis.php test/test

@@ -2,6 +2,14 @@
 
 set -eu
 
+cat << EOF > /usr/local/etc/php/conf.d/general.ini
+[php]
+display_errors = on
+error_reporting = E_ALL
+EOF
+
+# php -i
+
 # Generate a patch for pantheon-systems/wp-redis.
 # This is not a part of testing, but just for convenience.
 tmp_new_oc="$(mktemp)"

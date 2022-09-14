@@ -444,18 +444,22 @@ class TaroskyObjectCache extends WP_Object_Cache {
                     return $value;
                 }
 
-                [$res, $actual_version] = $this->_call_redis('mget', [
+                $res = $this->_call_redis('mget', [
                     $redis_key,
                     $this->_version_key($key, $group),
                 ]);
+                if ($res === false) {
+                    return false;
+                }
 
+                [$res2, $actual_version] = $res;
                 if ($actual_version === false) {
                     $this->clear_cache_version($redis_key);
                 } else {
                     $this->set_cache_version($redis_key, $actual_version);
                 }
 
-                list($value, $found) = self::decode_redis_get($res);
+                list($value, $found) = self::decode_redis_get($res2);
                 return $value;
             } finally {
                 if ($found) {
@@ -500,6 +504,9 @@ class TaroskyObjectCache extends WP_Object_Cache {
 
         $res_count = 0;
         $res_array = $this->_call_redis('mget', $redis_params);
+        if ($res_array === false) {
+            return array_fill(0, count($redis_keys), false);
+        }
         $results = [];
         foreach ($redis_keys as $i => $redis_key) {
             $results[] = $res_array[$res_count++];

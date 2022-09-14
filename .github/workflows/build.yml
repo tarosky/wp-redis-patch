@@ -19,10 +19,10 @@ jobs:
         - '5'
     steps:
     - uses: actions/checkout@v2
-    - name: Get WP_REDIS_VERSION
-      run: echo "::set-env name=WP_REDIS_VERSION::$(< env/wp_redis_version)"
-    - name: set REDIS_VERSION
-      run: echo "::set-env name=REDIS_VERSION::${{ matrix.redis-version }}"
+    - name: Set WP_REDIS_VERSION
+      run: echo "WP_REDIS_VERSION=$(< env/wp_redis_version)" >> $GITHUB_ENV
+    - name: Set REDIS_VERSION
+      run: echo "REDIS_VERSION=${{matrix.redis-version}}" >> $GITHUB_ENV
     - name: Build docker image
       run: docker-compose -f test/docker-compose.yml build
     - name: Run PHPUnit inside Docker Compose

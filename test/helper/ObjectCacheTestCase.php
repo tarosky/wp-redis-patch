@@ -27,7 +27,7 @@ abstract class ObjectCacheTestCase extends TestCase {
     }
 
     public static function setUpBeforeClass(): void {
-        parent::setUp();
+        parent::setUpBeforeClass();
 
         global $redis_server;
         $redis_server = ['host' => 'redis', 'port' => 6379];

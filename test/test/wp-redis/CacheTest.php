@@ -321,6 +321,22 @@ class CacheTest extends CacheTestCase {
         );
     }
 
+    public function test_get_multiple_no_connection() {
+        $this->cache->set('foo1', 'bar', 'group1');
+        $this->cache->set('foo2', 'bar', 'group1');
+
+        $this->cache->is_redis_connected = false;
+        $this->cache->cache = [];
+
+        $found = $this->cache->get_multiple(['foo1', 'foo2', 'foo3'], 'group1');
+
+        $this->assertSame([
+            'foo1' => false,
+            'foo2' => false,
+            'foo3' => false,
+        ], $found);
+    }
+
     static function tearDownAfterClass(): void {
         // No-op
     }

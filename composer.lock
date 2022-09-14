@@ -4,30 +4,33 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a23b4cdc82c826a9416d2c36d975e623",
+    "content-hash": "eb0599cad5e1073e7eeb7ac7daca4f51",
     "packages": [],
     "packages-dev": [
         {
             "name": "giorgiosironi/eris",
-            "version": "0.11.0",
+            "version": "0.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/giorgiosironi/eris.git",
-                "reference": "fe03babc632c4e10961e98e2f62fb2b8250e6171"
+                "reference": "d3a07e2e30eff6e0ee0a478efab4c6bed4290033"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/giorgiosironi/eris/zipball/fe03babc632c4e10961e98e2f62fb2b8250e6171",
-                "reference": "fe03babc632c4e10961e98e2f62fb2b8250e6171",
+                "url": "https://api.github.com/repos/giorgiosironi/eris/zipball/d3a07e2e30eff6e0ee0a478efab4c6bed4290033",
+                "reference": "d3a07e2e30eff6e0ee0a478efab4c6bed4290033",
                 "shasum": ""
             },
             "require": {
-                "php": ">=5.5"
+                "php": ">=7.1"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^2.0",
                 "icomefromthenet/reverse-regex": "v0.0.6.3",
-                "phpunit/phpunit": ">4,<8"
+                "phpstan/phpstan": "^1.2",
+                "phpunit/phpunit": ">=7",
+                "psalm/phar": "^4.13",
+                "sebastian/comparator": ">=1.2.4"
             },
             "suggest": {
                 "icomefromthenet/reverse-regex": "v0.0.6.3 for the regex() Generator",
@@ -35,12 +38,12 @@
             },
             "type": "library",
             "autoload": {
-                "psr-4": {
-                    "Eris\\": "src/"
-                },
                 "files": [
                     "src/Generator/functions.php"
-                ]
+                ],
+                "psr-4": {
+                    "Eris\\": "src/"
+                }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
@@ -48,20 +51,24 @@
             ],
             "authors": [
                 {
-                    "name": "Gabriele Lana",
-                    "email": "gabriele.lana@gmail.com"
-                },
-                {
                     "name": "Giorgio Sironi",
                     "email": "info@giorgiosironi.com"
                 },
                 {
                     "name": "Mirko Bonadei",
                     "email": "mirko.bonadei@gmail.com"
+                },
+                {
+                    "name": "Gabriele Lana",
+                    "email": "gabriele.lana@gmail.com"
                 }
             ],
             "description": "PHP library for property-based testing. Integrates with PHPUnit.",
-            "time": "2018-09-16T08:41:41+00:00"
+            "support": {
+                "issues": "https://github.com/giorgiosironi/eris/issues",
+                "source": "https://github.com/giorgiosironi/eris/tree/0.13.0"
+            },
+            "time": "2021-12-17T21:51:49+00:00"
         }
     ],
     "aliases": [],
@@ -71,5 +78,5 @@
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": [],
-    "plugin-api-version": "1.1.0"
+    "plugin-api-version": "2.0.0"
 }

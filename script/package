@@ -6,7 +6,7 @@ target=work/wp-redis-patch
 
 rm -fr "$target" "$target.zip"
 mkdir -p "$target"
-cp -R lua object-cache.php work/object-cache.php.patch "$target"
+cp -R lua object-cache.php "$target"
 cp env/wp_redis_version "$target/WP_REDIS_VERSION"
 {
   cd work

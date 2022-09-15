@@ -45,7 +45,7 @@ jobs:
     - name: Show artifacts
       run: ls -laR ./
     - name: Generate build number
-      uses: einaregilsson/build-number@v2
+      uses: einaregilsson/build-number@v3
       with:
         token: ${{secrets.GITHUB_TOKEN}}
         prefix: build_number_generator

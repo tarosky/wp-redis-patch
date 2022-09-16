@@ -13,6 +13,10 @@ class CacheTest extends CacheTestCase {
         return $this->cache;
     }
 
+    public function test_loaded() {
+        $this->markTestSkipped('This feature is not supported.');
+    }
+
     public function test_delete_group() {
         $this->markTestSkipped('This feature is not supported.');
     }
@@ -22,6 +26,10 @@ class CacheTest extends CacheTestCase {
     }
 
     public function test_wp_cache_delete_group() {
+        $this->markTestSkipped('This feature is not supported.');
+    }
+
+    public function test_wp_redis_get_info() {
         $this->markTestSkipped('This feature is not supported.');
     }
 

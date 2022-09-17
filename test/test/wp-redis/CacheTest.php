@@ -8,7 +8,7 @@ class CacheTest extends CacheTestCase {
     public function &init_cache() {
         $orig_cache = &parent::init_cache();
 
-        $this->cache = new TaroskyObjectCache();
+        $this->cache = new WP_Object_Cache();
         $this->cache->global_groups = $orig_cache->global_groups;
         return $this->cache;
     }

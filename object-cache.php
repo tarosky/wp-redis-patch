@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Originally created by Pantheon as https://github.com/pantheon-systems/wp-redis
+ * Modified by Tarosky INC.
+ */
+
 if (!defined('WP_CACHE_KEY_SALT')) {
     define('WP_CACHE_KEY_SALT', '');
 }
@@ -164,7 +169,7 @@ function wp_cache_init() {
     global $wp_object_cache;
 
     if (!($wp_object_cache instanceof WP_Object_Cache)) {
-        $wp_object_cache = new TaroskyObjectCache;
+        $wp_object_cache = new WP_Object_Cache;
     }
 }
 
@@ -262,19 +267,36 @@ function wp_cache_reset() {
 }
 
 /**
- * WordPress Object Cache
+ * Retrieve multiple values from cache.
  *
- * The WordPress Object Cache is used to save on trips to the database. The
- * Object Cache stores all of the cache data to memory and makes the cache
- * contents available by using a key, which is used to name and later retrieve
- * the cache contents.
+ * Gets multiple values from cache, including across multiple groups
  *
- * The Object Cache can be replaced by other caching mechanisms by placing files
- * in the wp-content folder which is looked at in wp-settings. If that file
- * exists, then this file will not be included.
+ * Usage: array( 'group0' => array( 'key0', 'key1', 'key2', ), 'group1' => array( 'key0' ) )
+ *
+ * Mirrors discussion on Trac: https://core.trac.wordpress.org/ticket/20875#comment:33
+ *
+ * @param array $groups Array of groups and keys to retrieve
+ * @param bool $force Optional. Whether to force an update of the local cache
+ *                    from the persistent cache. Default false.
+ *
+ * @global WP_Object_Cache $wp_object_cache
+ *
+ * @return bool|array
+ *     Array of cached values, in format:
+ *     ['group0' => ['key0' => 'value0', 'key1' => 'value1', 'key2' => 'value2'], 'group1' => ['key0' => 'value0']]
+ *     Values not found in cache will be missing along with the corresponding keys.
  */
-class WP_Object_Cache {
+function wp_cache_tarosky_get_multiple($groups, $force = false) {
+    global $wp_object_cache;
 
+    return $wp_object_cache->normalized_get_multiple($groups, $force);
+}
+
+if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
+    define('WP_CACHE_VERSION_KEY_SALT', 'version:');
+}
+
+class WP_Object_Cache {
     /**
      * Holds the cached objects
      *
@@ -361,36 +383,6 @@ class WP_Object_Cache {
     const USE_GROUPS = false;
 
     /**
-     * Adds data to the cache if it doesn't already exist.
-     *
-     * @uses WP_Object_Cache::_exists Checks to see if the cache already has data.
-     * @uses WP_Object_Cache::set Sets the data after the checking the cache
-     *     contents existence.
-     *
-     * @param int|string $key What to call the contents in the cache
-     * @param mixed $data The contents to store in the cache
-     * @param string $group Where to group the cache contents
-     * @param int $expire When to expire the cache contents
-     * @return bool False if cache key and group already exist, true on success
-     */
-    public function add($key, $data, $group = 'default', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
-            return false;
-        }
-
-        if ($this->_exists($key, $group)) {
-            return false;
-        }
-
-        return $this->set($key, $data, $group, (int) $expire);
-    }
-
-    /**
      * Sets the list of global groups.
      *
      * @param array $groups List of groups that are global.
@@ -415,358 +407,12 @@ class WP_Object_Cache {
     }
 
     /**
-     * Decrement numeric cache item's value
-     *
-     * @param int|string $key The cache key to increment
-     * @param int $offset The amount by which to decrement the item's value. Default is 1.
-     * @param string $group The group the key is in.
-     * @return false|int False on failure, the item's new value on success.
-     */
-    public function decr($key, $offset = 1, $group = 'default') {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        // The key needs to exist in order to be decremented
-        if (!$this->_exists($key, $group)) {
-            return false;
-        }
-
-        $offset = (int) $offset;
-
-        // If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-        if (!$this->_should_persist($group)) {
-            $existing = $this->_get_internal($key, $group);
-            if (empty($existing) || !is_numeric($existing)) {
-                $existing = 0;
-            } else {
-                $existing -= $offset;
-            }
-            if ($existing < 0) {
-                $existing = 0;
-            }
-            $this->_set_internal($key, $group, $existing);
-            return $existing;
-        }
-
-        $id     = $this->_key($key, $group);
-        $result = $this->_call_redis('decrBy', $id, $offset);
-        if ($result < 0) {
-            $result = 0;
-            $this->_call_redis('set', $id, $result);
-        }
-
-        if (is_int($result)) {
-            $this->_set_internal($key, $group, $result);
-        }
-        return $result;
-    }
-
-    /**
-     * Remove the contents of the cache key in the group
-     *
-     * If the cache key does not exist in the group and $force parameter is set
-     * to false, then nothing will happen. The $force parameter is set to false
-     * by default.
-     *
-     * @param int|string $key What the contents in the cache are called
-     * @param string $group Where the cache contents are grouped
-     * @param bool $force Optional. Whether to force the unsetting of the cache
-     *     key in the group
-     * @return bool False if the contents weren't deleted and true on success
-     */
-    public function delete($key, $group = 'default', $force = false) {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        if (!$force && !$this->_exists($key, $group)) {
-            return false;
-        }
-
-        if ($this->_should_persist($group)) {
-            $id     = $this->_key($key, $group);
-            $result = $this->_call_redis('del', $id);
-
-            if (1 !== $result) {
-                return false;
-            }
-        }
-
-        $this->_unset_internal($key, $group);
-        return true;
-    }
-
-    /**
-     * Clears the object cache of all data.
-     *
-     * By default, this will flush the session cache as well as Redis, but we
-     * can leave the redis cache intact if we want. This is helpful when, for
-     * instance, you're running a batch process and want to clear the session
-     * store to reduce the memory footprint, but you don't want to have to
-     * re-fetch all the values from the database.
-     *
-     * @param  bool $redis Should we flush redis as well as the session cache?
-     * @return bool Always returns true
-     */
-    public function flush($redis = true) {
-        $this->cache = array();
-        if ($redis) {
-            $this->_call_redis('flushdb');
-        }
-
-        return true;
-    }
-
-    /**
-     * Retrieves the cache contents, if it exists
-     *
-     * The contents will be first attempted to be retrieved by searching by the
-     * key in the cache group. If the cache is hit (success) then the contents
-     * are returned.
-     *
-     * On failure, the number of cache misses will be incremented.
-     *
-     * @param int|string $key What the contents in the cache are called
-     * @param string $group Where the cache contents are grouped
-     * @param string $force Whether to force a refetch rather than relying on the local cache (default is false)
-     * @param bool $found Optional. Whether the key was found in the cache. Disambiguates a return of false, a storable value. Passed by reference. Default null.
-     * @return bool|mixed False on failure to retrieve contents or the cache contents on success
-     */
-    public function get($key, $group = 'default', $force = false, &$found = null) {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        // Key is set internally, so we can use this value
-        if ($this->_isset_internal($key, $group) && !$force) {
-            $this->cache_hits += 1;
-            $found             = true;
-            return $this->_get_internal($key, $group);
-        }
-
-        // Not a persistent group, so don't try Redis if the value doesn't exist
-        // internally
-        if (!$this->_should_persist($group)) {
-            $this->cache_misses += 1;
-            $found               = false;
-            return false;
-        }
-
-        $id    = $this->_key($key, $group);
-        $value = $this->_call_redis('get', $id);
-
-        // PhpRedis returns `false` when the key doesn't exist
-        if (false === $value) {
-            $this->cache_misses += 1;
-            $found               = false;
-            return false;
-        }
-
-        // All non-numeric values are serialized
-        $value = is_numeric($value) ? intval($value) : unserialize($value);
-
-        $this->_set_internal($key, $group, $value);
-        $this->cache_hits += 1;
-        $found             = true;
-        return $value;
-    }
-
-    /**
-     * Retrieves multiple values from the cache in one call.
-     *
-     * @param array  $keys  Array of keys under which the cache contents are stored.
-     * @param string $group Optional. Where the cache contents are grouped. Default empty.
-     * @param bool   $force Optional. Whether to force an update of the local cache
-     *                      from the persistent cache. Default false.
-     * @return array Array of values organized into groups.
-     */
-    public function get_multiple($keys, $group = 'default', $force = false) {
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        $cache = array();
-        if (!$this->_should_persist($group)) {
-            foreach ($keys as $key) {
-                $cache[$key] = $this->_isset_internal($key, $group) ? $this->_get_internal($key, $group) : false;
-                false !== $cache[$key] ? $this->cache_hits++ : $this->cache_misses++;
-            }
-            return $cache;
-        }
-
-        // Attempt to fetch values from the internal cache.
-        if (!$force) {
-            foreach ($keys as $key) {
-                if ($this->_isset_internal($key, $group)) {
-                    $cache[$key] = $this->_get_internal($key, $group);
-                    $this->cache_hits++;
-                }
-            }
-        }
-        $remaining_keys = array_diff($keys, array_keys($cache));
-        // If all keys were satisfied by the internal cache, we're sorted.
-        if (empty($remaining_keys)) {
-            return $cache;
-        }
-
-        $ids = array();
-        foreach ($remaining_keys as $key) {
-            $ids[] = $this->_key($key, $group);
-        }
-        $results = $this->_call_redis('mget', $ids);
-
-        // Process the results from the Redis call.
-        foreach ($remaining_keys as $i => $key) {
-            $value = isset($results[$i]) ? $results[$i] : false;
-            if (false !== $value) {
-                // All non-numeric values are serialized
-                $value = is_numeric($value) ? intval($value) : unserialize($value);
-                $this->_set_internal($key, $group, $value);
-                $this->cache_hits++;
-            } else {
-                $this->cache_misses++;
-            }
-            $cache[$key] = $value;
-        }
-        // Make sure return values are returned in the order of the passed keys.
-        $return_cache = array();
-        foreach ($keys as $key) {
-            $return_cache[$key] = isset($cache[$key]) ? $cache[$key] : false;
-        }
-        return $return_cache;
-    }
-
-    /**
-     * Increment numeric cache item's value
-     *
-     * @param int|string $key The cache key to increment
-     * @param int $offset The amount by which to increment the item's value. Default is 1.
-     * @param string $group The group the key is in.
-     * @return false|int False on failure, the item's new value on success.
-     */
-    public function incr($key, $offset = 1, $group = 'default') {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        // The key needs to exist in order to be incremented
-        if (!$this->_exists($key, $group)) {
-            return false;
-        }
-
-        $offset = (int) $offset;
-
-        // If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-        if (!$this->_should_persist($group)) {
-            $existing = $this->_get_internal($key, $group);
-            if (empty($existing) || !is_numeric($existing)) {
-                $existing = 1;
-            } else {
-                $existing += $offset;
-            }
-            if ($existing < 0) {
-                $existing = 0;
-            }
-            $this->_set_internal($key, $group, $existing);
-            return $existing;
-        }
-
-        $id     = $this->_key($key, $group);
-        $result = $this->_call_redis('incrBy', $id, $offset);
-        if ($result < 0) {
-            $result = 0;
-            $this->_call_redis('set', $id, $result);
-        }
-
-        if (is_int($result)) {
-            $this->_set_internal($key, $group, $result);
-        }
-        return $result;
-    }
-
-    /**
-     * Replace the contents in the cache, if contents already exist
-     * @see WP_Object_Cache::set()
-     *
-     * @param int|string $key What to call the contents in the cache
-     * @param mixed $data The contents to store in the cache
-     * @param string $group Where to group the cache contents
-     * @param int $expire When to expire the cache contents
-     * @return bool False if not exists, true if contents were replaced
-     */
-    public function replace($key, $data, $group = 'default', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        if (!$this->_exists($key, $group)) {
-            return false;
-        }
-
-        return $this->set($key, $data, $group, (int) $expire);
-    }
-
-    /**
      * Reset keys
      *
      * @deprecated 3.5.0
      */
     public function reset() {
         _deprecated_function(__FUNCTION__, '3.5', 'switch_to_blog()');
-    }
-
-    /**
-     * Sets the data contents into the cache
-     *
-     * The cache contents is grouped by the $group parameter followed by the
-     * $key. This allows for duplicate ids in unique groups. Therefore, naming of
-     * the group should be used with care and should follow normal function
-     * naming guidelines outside of core WordPress usage.
-     *
-     * The $expire parameter is not used, because the cache will automatically
-     * expire for each time a page is accessed and PHP finishes. The method is
-     * more for cache plugins which use files.
-     *
-     * @param int|string $key What to call the contents in the cache
-     * @param mixed $data The contents to store in the cache
-     * @param string $group Where to group the cache contents
-     * @param int $expire TTL for the data, in seconds
-     * @return bool Always returns true
-     */
-    public function set($key, $data, $group = 'default', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
-
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        if (is_object($data)) {
-            $data = clone $data;
-        }
-
-        $this->_set_internal($key, $group, $data);
-
-        if (!$this->_should_persist($group)) {
-            return true;
-        }
-
-        // If this is an integer, store it as such. Otherwise, serialize it.
-        if (!is_numeric($data) || intval($data) !== $data) {
-            $data = serialize($data);
-        }
-
-        $id = $this->_key($key, $group);
-        if (empty($expire)) {
-            $this->_call_redis('set', $id, $data);
-        } else {
-            $this->_call_redis('setex', $id, $expire, $data);
-        }
-        return true;
     }
 
     /**
@@ -884,27 +530,6 @@ class WP_Object_Cache {
         if (array_key_exists($key, $this->cache)) {
             unset($this->cache[$key]);
         }
-    }
-
-    /**
-     * Utility function to generate the redis key for a given key and group.
-     *
-     * @param  string $key   The cache key.
-     * @param  string $group The cache group.
-     * @return string        A properly prefixed redis cache key.
-     */
-    protected function _key($key = '', $group = 'default') {
-        if (empty($group)) {
-            $group = 'default';
-        }
-
-        if (!empty($this->global_groups[$group])) {
-            $prefix = $this->global_prefix;
-        } else {
-            $prefix = $this->blog_prefix;
-        }
-
-        return preg_replace('/\s+/', '', WP_CACHE_KEY_SALT . "$prefix$group:$key");
     }
 
     /**
@@ -1041,28 +666,6 @@ class WP_Object_Cache {
     }
 
     /**
-     * Constructs a PHPRedis Redis client.
-     *
-     * @param array $client_parameters Parameters used to construct a Redis client.
-     * @return Redis Redis client.
-     */
-    public function prepare_client_connection($client_parameters) {
-        $redis = new Redis;
-
-        $redis->connect(
-            $client_parameters['host'],
-            $client_parameters['port'],
-            // $client_parameters['timeout'] is sent in milliseconds,
-            // connect() takes seconds, so divide by 1000
-            $client_parameters['timeout'] / 1000,
-            null,
-            $client_parameters['retry_interval']
-        );
-
-        return $redis;
-    }
-
-    /**
      * Sets up the Redis connection (ie authentication and specific database).
      *
      * @param Redis $redis Redis client.
@@ -1086,100 +689,6 @@ class WP_Object_Cache {
             }
         }
         return true;
-    }
-
-    /**
-     * Wrapper method for calls to Redis, which fails gracefully when Redis is unavailable
-     *
-     * @param string $method
-     * @param mixed $args
-     * @return mixed
-     */
-    protected function _call_redis($method) {
-        global $wpdb;
-
-        $arguments = func_get_args();
-        array_shift($arguments); // ignore $method
-
-        // $group is intended for the failback, and isn't passed to the Redis callback
-        if ('hIncrBy' === $method) {
-            $group = array_pop($arguments);
-        }
-
-        if ($this->is_redis_connected) {
-            try {
-                if (!isset($this->redis_calls[$method])) {
-                    $this->redis_calls[$method] = 0;
-                }
-                $this->redis_calls[$method]++;
-                $retval = call_user_func_array(array($this->redis, $method), $arguments);
-                return $retval;
-            } catch (Exception $e) {
-                $retry_exception_messages = $this->retry_exception_messages();
-                // PhpRedis throws an Exception when it fails a server call.
-                // To prevent WordPress from fataling, we catch the Exception.
-                if ($this->exception_message_matches($e->getMessage(), $retry_exception_messages)) {
-
-                    $this->_exception_handler($e);
-
-                    // Attempt to refresh the connection if it was successfully established once
-                    // $this->is_redis_connected will be set inside _connect_redis()
-                    if ($this->_connect_redis()) {
-                        return call_user_func_array(array($this, '_call_redis'), array_merge(array($method), $arguments));
-                    }
-                    // Fall through to fallback below
-                } else {
-                    throw $e;
-                }
-            }
-        } // End if().
-
-        if ($this->is_redis_failback_flush_enabled() && !$this->do_redis_failback_flush && !empty($wpdb)) {
-            if ($this->multisite) {
-                $table = $wpdb->sitemeta;
-                $col1  = 'meta_key';
-                $col2  = 'meta_value';
-            } else {
-                $table = $wpdb->options;
-                $col1  = 'option_name';
-                $col2  = 'option_value';
-            }
-            // @codingStandardsIgnoreStart
-            $wpdb->query("INSERT IGNORE INTO {$table} ({$col1},{$col2}) VALUES ('wp_redis_do_redis_failback_flush',1)");
-            // @codingStandardsIgnoreEnd
-            $this->do_redis_failback_flush = true;
-        }
-
-        // Mock expected behavior from Redis for these methods
-        switch ($method) {
-            case 'incr':
-            case 'incrBy':
-                $val    = $this->cache[$arguments[0]];
-                $offset = isset($arguments[1]) && 'incrBy' === $method ? $arguments[1] : 1;
-                $val    = $val + $offset;
-                return $val;
-            case 'hIncrBy':
-                $val = $this->_get_internal($arguments[1], $group);
-                return $val + $arguments[2];
-            case 'decrBy':
-            case 'decr':
-                $val    = $this->cache[$arguments[0]];
-                $offset = isset($arguments[1]) && 'decrBy' === $method ? $arguments[1] : 1;
-                $val    = $val - $offset;
-                return $val;
-            case 'del':
-            case 'hDel':
-                return 1;
-            case 'flushAll':
-            case 'flushdb':
-            case 'IsConnected':
-            case 'exists':
-            case 'get':
-            case 'mget':
-            case 'hGet':
-            case 'hmGet':
-                return false;
-        }
     }
 
     /**
@@ -1268,54 +777,6 @@ class WP_Object_Cache {
     }
 
     /**
-     * Sets up object properties; PHP 5 style constructor
-     *
-     * @return null|WP_Object_Cache If cache is disabled, returns null.
-     */
-    public function __construct() {
-        global $blog_id, $table_prefix, $wpdb;
-
-        $this->multisite   = is_multisite();
-        $this->blog_prefix = $this->multisite ? $blog_id . ':' : '';
-
-        if (!$this->_connect_redis() && function_exists('add_action')) {
-            add_action('admin_notices', array($this, 'wp_action_admin_notices_warn_missing_redis'));
-        }
-
-        if ($this->is_redis_failback_flush_enabled() && !empty($wpdb)) {
-            if ($this->multisite) {
-                $table = $wpdb->sitemeta;
-                $col1  = 'meta_key';
-                $col2  = 'meta_value';
-            } else {
-                $table = $wpdb->options;
-                $col1  = 'option_name';
-                $col2  = 'option_value';
-            }
-            // @codingStandardsIgnoreStart
-            $this->do_redis_failback_flush = (bool) $wpdb->get_results("SELECT {$col2} FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
-            // @codingStandardsIgnoreEnd
-            if ($this->is_redis_connected && $this->do_redis_failback_flush) {
-                $ret = $this->_call_redis('flushdb');
-                if ($ret) {
-                    // @codingStandardsIgnoreStart
-                    $wpdb->query("DELETE FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
-                    // @codingStandardsIgnoreEnd
-                    $this->do_redis_failback_flush = false;
-                }
-            }
-        }
-
-        $this->global_prefix = ($this->multisite || defined('CUSTOM_USER_TABLE') && defined('CUSTOM_USER_META_TABLE')) ? '' : $table_prefix;
-
-        /**
-         * @todo This should be moved to the PHP4 style constructor, PHP5
-         * already calls __destruct()
-         */
-        register_shutdown_function(array($this, '__destruct'));
-    }
-
-    /**
      * Will save the object cache before object is completely destroyed.
      *
      * Called upon object destruction, which should be when PHP ends.
@@ -1325,39 +786,7 @@ class WP_Object_Cache {
     public function __destruct() {
         return true;
     }
-}
 
-/**
- * Retrieve multiple values from cache.
- *
- * Gets multiple values from cache, including across multiple groups
- *
- * Usage: array( 'group0' => array( 'key0', 'key1', 'key2', ), 'group1' => array( 'key0' ) )
- *
- * Mirrors discussion on Trac: https://core.trac.wordpress.org/ticket/20875#comment:33
- *
- * @param array $groups Array of groups and keys to retrieve
- * @param bool $force Optional. Whether to force an update of the local cache
- *                    from the persistent cache. Default false.
- *
- * @global WP_Object_Cache $wp_object_cache
- *
- * @return bool|array
- *     Array of cached values, in format:
- *     ['group0' => ['key0' => 'value0', 'key1' => 'value1', 'key2' => 'value2'], 'group1' => ['key0' => 'value0']]
- *     Values not found in cache will be missing along with the corresponding keys.
- */
-function wp_cache_tarosky_get_multiple($groups, $force = false) {
-    global $wp_object_cache;
-
-    return $wp_object_cache->normalized_get_multiple($groups, $force);
-}
-
-if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
-    define('WP_CACHE_VERSION_KEY_SALT', 'version:');
-}
-
-class TaroskyObjectCache extends WP_Object_Cache {
     private static $lua_scripts = [
         'decr-by-nover' => [],
         'incr-by-nover' => [],
@@ -1381,14 +810,14 @@ class TaroskyObjectCache extends WP_Object_Cache {
 
     private static function debug($message, ...$params) {
         if (defined('TAROSKY_WP_REDIS_PATCH_DEBUG') && TAROSKY_WP_REDIS_PATCH_DEBUG) {
-            error_log("[TaroskyObjectCache debug]$message: " . var_export($params, true));
+            error_log("[WP_Object_Cache debug]$message: " . var_export($params, true));
         }
     }
 
     private static function error($message, ...$params) {
-        error_log("[TaroskyObjectCache error]$message: " . var_export($params, true));
+        error_log("[WP_Object_Cache error]$message: " . var_export($params, true));
         error_log(
-            "[TaroskyObjectCache error]stacktrace: " .
+            "[WP_Object_Cache error]stacktrace: " .
                 var_export(debug_backtrace(), true),
         );
     }
@@ -1436,7 +865,13 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return false;
     }
 
-    // override
+    /**
+     * Utility function to generate the redis key for a given key and group.
+     *
+     * @param  string $key   The cache key.
+     * @param  string $group The cache group.
+     * @return string        A properly prefixed redis cache key.
+     */
     protected function _key($key = '', $group = 'default') {
         if (empty($group)) {
             $group = 'default';
@@ -1467,11 +902,16 @@ class TaroskyObjectCache extends WP_Object_Cache {
     }
 
     // This feature is not supported.
-    // override
     public function delete_group($group) {
         return false;
     }
 
+    /**
+     * Constructs a PHPRedis Redis client.
+     *
+     * @param array $client_parameters Parameters used to construct a Redis client.
+     * @return Redis Redis client.
+     */
     public function prepare_client_connection($client_parameters) {
         $redis_client = new Redis();
 
@@ -1545,8 +985,54 @@ class TaroskyObjectCache extends WP_Object_Cache {
             $iks[$group][$key];
     }
 
+
+    /**
+     * Sets up object properties; PHP 5 style constructor
+     *
+     * @return null|WP_Object_Cache If cache is disabled, returns null.
+     */
     public function __construct() {
-        parent::__construct();
+        global $blog_id, $table_prefix, $wpdb;
+
+        $this->multisite   = is_multisite();
+        $this->blog_prefix = $this->multisite ? $blog_id . ':' : '';
+
+        if (!$this->_connect_redis() && function_exists('add_action')) {
+            add_action('admin_notices', array($this, 'wp_action_admin_notices_warn_missing_redis'));
+        }
+
+        if ($this->is_redis_failback_flush_enabled() && !empty($wpdb)) {
+            if ($this->multisite) {
+                $table = $wpdb->sitemeta;
+                $col1  = 'meta_key';
+                $col2  = 'meta_value';
+            } else {
+                $table = $wpdb->options;
+                $col1  = 'option_name';
+                $col2  = 'option_value';
+            }
+            // @codingStandardsIgnoreStart
+            $this->do_redis_failback_flush = (bool) $wpdb->get_results("SELECT {$col2} FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
+            // @codingStandardsIgnoreEnd
+            if ($this->is_redis_connected && $this->do_redis_failback_flush) {
+                $ret = $this->_call_redis('flushdb');
+                if ($ret) {
+                    // @codingStandardsIgnoreStart
+                    $wpdb->query("DELETE FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
+                    // @codingStandardsIgnoreEnd
+                    $this->do_redis_failback_flush = false;
+                }
+            }
+        }
+
+        $this->global_prefix = ($this->multisite || defined('CUSTOM_USER_TABLE') && defined('CUSTOM_USER_META_TABLE')) ? '' : $table_prefix;
+
+        /**
+         * @todo This should be moved to the PHP4 style constructor, PHP5
+         * already calls __destruct()
+         */
+        register_shutdown_function(array($this, '__destruct'));
+
         $this->init_versioned_redis_keys();
     }
 
@@ -1655,7 +1141,24 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $result;
     }
 
-    // override
+    /**
+     * Sets the data contents into the cache
+     *
+     * The cache contents is grouped by the $group parameter followed by the
+     * $key. This allows for duplicate ids in unique groups. Therefore, naming of
+     * the group should be used with care and should follow normal function
+     * naming guidelines outside of core WordPress usage.
+     *
+     * The $expire parameter is not used, because the cache will automatically
+     * expire for each time a page is accessed and PHP finishes. The method is
+     * more for cache plugins which use files.
+     *
+     * @param int|string $key What to call the contents in the cache
+     * @param mixed $data The contents to store in the cache
+     * @param string $group Where to group the cache contents
+     * @param int $expire TTL for the data, in seconds
+     * @return bool Always returns true
+     */
     public function set(
         $key,
         $data,
@@ -1697,6 +1200,16 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $succeeded;
     }
 
+    /**
+     * Replace the contents in the cache, if contents already exist
+     * @see WP_Object_Cache::set()
+     *
+     * @param int|string $key What to call the contents in the cache
+     * @param mixed $data The contents to store in the cache
+     * @param string $group Where to group the cache contents
+     * @param int $expire When to expire the cache contents
+     * @return bool False if not exists, true if contents were replaced
+     */
     public function replace(
         $key,
         $data,
@@ -1734,6 +1247,21 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $succeeded;
     }
 
+    /**
+     * Retrieves the cache contents, if it exists
+     *
+     * The contents will be first attempted to be retrieved by searching by the
+     * key in the cache group. If the cache is hit (success) then the contents
+     * are returned.
+     *
+     * On failure, the number of cache misses will be incremented.
+     *
+     * @param int|string $key What the contents in the cache are called
+     * @param string $group Where the cache contents are grouped
+     * @param string $force Whether to force a refetch rather than relying on the local cache (default is false)
+     * @param bool $found Optional. Whether the key was found in the cache. Disambiguates a return of false, a storable value. Passed by reference. Default null.
+     * @return bool|mixed False on failure to retrieve contents or the cache contents on success
+     */
     public function get($key, $group = 'default', $force = false, &$found = null) {
         if (empty($group)) {
             $group = 'default';
@@ -1848,6 +1376,15 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $results;
     }
 
+    /**
+     * Retrieves multiple values from the cache in one call.
+     *
+     * @param array  $keys  Array of keys under which the cache contents are stored.
+     * @param string $group Optional. Where the cache contents are grouped. Default empty.
+     * @param bool   $force Optional. Whether to force an update of the local cache
+     *                      from the persistent cache. Default false.
+     * @return array Array of values organized into groups.
+     */
     public function get_multiple($keys, $group = 'default', $force = false) {
         $normal_res = $this->normalized_get_multiple([$group => $keys], $force);
         $group_kv = array_key_exists($group, $normal_res) ? $normal_res[$group] : [];
@@ -1943,8 +1480,21 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $cache;
     }
 
-    // `force` param is ignored.
+    /**
+     * Remove the contents of the cache key in the group
+     *
+     * If the cache key does not exist in the group and $force parameter is set
+     * to false, then nothing will happen. The $force parameter is set to false
+     * by default.
+     *
+     * @param int|string $key What the contents in the cache are called
+     * @param string $group Where the cache contents are grouped
+     * @param bool $force Optional. Whether to force the unsetting of the cache
+     *     key in the group
+     * @return bool False if the contents weren't deleted and true on success
+     */
     public function delete($key, $group = 'default', $force = true) {
+        // `force` param is ignored.
         if (empty($group)) {
             $group = 'default';
         }
@@ -1980,6 +1530,19 @@ class TaroskyObjectCache extends WP_Object_Cache {
         ];
     }
 
+    /**
+     * Adds data to the cache if it doesn't already exist.
+     *
+     * @uses WP_Object_Cache::_exists Checks to see if the cache already has data.
+     * @uses WP_Object_Cache::set Sets the data after the checking the cache
+     *     contents existence.
+     *
+     * @param int|string $key What to call the contents in the cache
+     * @param mixed $data The contents to store in the cache
+     * @param string $group Where to group the cache contents
+     * @param int $expire When to expire the cache contents
+     * @return bool False if cache key and group already exist, true on success
+     */
     public function add(
         $key,
         $data,
@@ -2021,6 +1584,14 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $succeeded;
     }
 
+    /**
+     * Decrement numeric cache item's value
+     *
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to decrement the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return false|int False on failure, the item's new value on success.
+     */
     public function decr($key, $offset = 1, $group = 'default') {
         if (empty($group)) {
             $group = 'default';
@@ -2064,6 +1635,14 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $result;
     }
 
+    /**
+     * Increment numeric cache item's value
+     *
+     * @param int|string $key The cache key to increment
+     * @param int $offset The amount by which to increment the item's value. Default is 1.
+     * @param string $group The group the key is in.
+     * @return false|int False on failure, the item's new value on success.
+     */
     public function incr($key, $offset = 1, $group = 'default') {
         if (empty($group)) {
             $group = 'default';
@@ -2107,14 +1686,122 @@ class TaroskyObjectCache extends WP_Object_Cache {
         return $result;
     }
 
+    /**
+     * Clears the object cache of all data.
+     *
+     * By default, this will flush the session cache as well as Redis, but we
+     * can leave the redis cache intact if we want. This is helpful when, for
+     * instance, you're running a batch process and want to clear the session
+     * store to reduce the memory footprint, but you don't want to have to
+     * re-fetch all the values from the database.
+     *
+     * @param  bool $redis Should we flush redis as well as the session cache?
+     * @return bool Always returns true
+     */
     public function flush($redis = true) {
         $this->flush_cache_versions();
-        return parent::flush($redis);
+        $this->cache = array();
+        if ($redis) {
+            $this->_call_redis('flushdb');
+        }
+
+        return true;
     }
 
-    public function _call_redis($method, ...$args) {
-        return parent::_call_redis($method, ...$args);
+
+    /**
+     * Wrapper method for calls to Redis, which fails gracefully when Redis is unavailable
+     *
+     * @param string $method
+     * @param mixed $args
+     * @return mixed
+     */
+    public function _call_redis($method) {
+        global $wpdb;
+
+        $arguments = func_get_args();
+        array_shift($arguments); // ignore $method
+
+        // $group is intended for the failback, and isn't passed to the Redis callback
+        if ('hIncrBy' === $method) {
+            $group = array_pop($arguments);
+        }
+
+        if ($this->is_redis_connected) {
+            try {
+                if (!isset($this->redis_calls[$method])) {
+                    $this->redis_calls[$method] = 0;
+                }
+                $this->redis_calls[$method]++;
+                $retval = call_user_func_array(array($this->redis, $method), $arguments);
+                return $retval;
+            } catch (Exception $e) {
+                $retry_exception_messages = $this->retry_exception_messages();
+                // PhpRedis throws an Exception when it fails a server call.
+                // To prevent WordPress from fataling, we catch the Exception.
+                if ($this->exception_message_matches($e->getMessage(), $retry_exception_messages)) {
+
+                    $this->_exception_handler($e);
+
+                    // Attempt to refresh the connection if it was successfully established once
+                    // $this->is_redis_connected will be set inside _connect_redis()
+                    if ($this->_connect_redis()) {
+                        return call_user_func_array(array($this, '_call_redis'), array_merge(array($method), $arguments));
+                    }
+                    // Fall through to fallback below
+                } else {
+                    throw $e;
+                }
+            }
+        } // End if().
+
+        if ($this->is_redis_failback_flush_enabled() && !$this->do_redis_failback_flush && !empty($wpdb)) {
+            if ($this->multisite) {
+                $table = $wpdb->sitemeta;
+                $col1  = 'meta_key';
+                $col2  = 'meta_value';
+            } else {
+                $table = $wpdb->options;
+                $col1  = 'option_name';
+                $col2  = 'option_value';
+            }
+            // @codingStandardsIgnoreStart
+            $wpdb->query("INSERT IGNORE INTO {$table} ({$col1},{$col2}) VALUES ('wp_redis_do_redis_failback_flush',1)");
+            // @codingStandardsIgnoreEnd
+            $this->do_redis_failback_flush = true;
+        }
+
+        // Mock expected behavior from Redis for these methods
+        switch ($method) {
+            case 'incr':
+            case 'incrBy':
+                $val    = $this->cache[$arguments[0]];
+                $offset = isset($arguments[1]) && 'incrBy' === $method ? $arguments[1] : 1;
+                $val    = $val + $offset;
+                return $val;
+            case 'hIncrBy':
+                $val = $this->_get_internal($arguments[1], $group);
+                return $val + $arguments[2];
+            case 'decrBy':
+            case 'decr':
+                $val    = $this->cache[$arguments[0]];
+                $offset = isset($arguments[1]) && 'decrBy' === $method ? $arguments[1] : 1;
+                $val    = $val - $offset;
+                return $val;
+            case 'del':
+            case 'hDel':
+                return 1;
+            case 'flushAll':
+            case 'flushdb':
+            case 'IsConnected':
+            case 'exists':
+            case 'get':
+            case 'mget':
+            case 'hGet':
+            case 'hmGet':
+                return false;
+        }
     }
 }
 
-TaroskyObjectCache::initialize();
+WP_Object_Cache::initialize();

@@ -23,7 +23,7 @@
 +
 +		$GLOBALS['redis_server']['host'] = 'redis';
 +		self::$client_parameters['host'] = 'redis';
-+		$GLOBALS['wp_object_cache'] = new TaroskyObjectCache;
++		$GLOBALS['wp_object_cache'] = new WP_Object_Cache;
 +		$GLOBALS['wp_object_cache']->flush();
 +
  		// create two cache objects with a shared cache dir

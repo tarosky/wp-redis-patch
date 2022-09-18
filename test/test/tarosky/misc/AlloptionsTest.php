@@ -26,7 +26,7 @@ class AlloptionsTest extends ObjectCacheTestCase {
 
     public function testEmptyVersionPrecondition() {
         self::$redis->set(
-            $this->oc1->redis_key(self::KEY),
+            $this->oc1->key(self::KEY),
             WP_Object_Cache::encode_redis_string(self::VAL_SUP)
         );
 

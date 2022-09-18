@@ -299,64 +299,43 @@ if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
 class WP_Object_Cache {
     /**
      * Holds the cached objects
-     *
-     * @var array
-     * @access private
      */
-    var $cache = [];
+    public array $cache = [];
 
     /**
      * The amount of times a request was made to Redis
-     *
-     * @access private
-     * @var int
      */
-    var $redis_calls = [];
+    public array $redis_calls = [];
 
     /**
      * List of global groups
-     *
-     * @var array
-     * @access protected
      */
-    var $global_groups = [];
+    public array $global_groups = [];
 
     /**
      * List of non-persistent groups
-     *
-     * @var array
-     * @access protected
      */
-    var $non_persistent_groups = [];
+    public array $non_persistent_groups = [];
 
     /**
      * The blog prefix to prepend to keys in non-global groups.
-     *
-     * @var int
-     * @access private
      */
-    var $blog_prefix;
+    public string $blog_prefix;
 
     /**
      * Whether or not Redis is connected
-     *
-     * @var bool
-     * @access private
      */
-    var $is_redis_connected = false;
+    public bool $is_redis_connected = false;
 
     /**
      * Whether or not the object cache thinks Redis needs a flush
-     *
-     * @var bool
-     * @access private
      */
-    var $do_redis_failback_flush = false;
+    public bool $do_redis_failback_flush = false;
 
     /**
      * The last triggered error
      */
-    var $last_triggered_error = '';
+    public string $last_triggered_error = '';
 
     /**
      * Sets the list of global groups.
@@ -404,32 +383,14 @@ class WP_Object_Cache {
     }
 
     /**
-     * Utility function to determine whether a key exists in the cache.
-     *
-     * @access protected
-     */
-    protected function _exists($key, $group) {
-        if ($this->_isset_internal($key, $group)) {
-            return true;
-        }
-
-        if (!$this->_should_persist($group)) {
-            return false;
-        }
-
-        $id = $this->_key($key, $group);
-        return $this->_call_redis('exists', $id);
-    }
-
-    /**
      * Check whether there's a value in the internal object cache.
      *
      * @param string $key
      * @param string $group
      * @return boolean
      */
-    protected function _isset_internal($key, $group) {
-        $key = $this->_key($key, $group);
+    private function isset_internal($key, $group) {
+        $key = $this->key($key, $group);
         return array_key_exists($key, $this->cache);
     }
 
@@ -440,9 +401,9 @@ class WP_Object_Cache {
      * @param string $group
      * @return mixed
      */
-    protected function _get_internal($key, $group) {
+    private function get_internal($key, $group) {
         $value = null;
-        $key = $this->_key($key, $group);
+        $key = $this->key($key, $group);
         if (array_key_exists($key, $this->cache)) {
             $value = $this->cache[$key];
         }
@@ -459,8 +420,8 @@ class WP_Object_Cache {
      * @param string $group
      * @param mixed $value
      */
-    protected function _set_internal($key, $group, $value) {
-        $key = $this->_key($key, $group);
+    private function set_internal($key, $group, $value) {
+        $key = $this->key($key, $group);
         $this->cache[$key] = $value;
     }
 
@@ -470,8 +431,8 @@ class WP_Object_Cache {
      * @param string $key
      * @param string $group
      */
-    protected function _unset_internal($key, $group) {
-        $key = $this->_key($key, $group);
+    private function unset_internal($key, $group) {
+        $key = $this->key($key, $group);
         if (array_key_exists($key, $this->cache)) {
             unset($this->cache[$key]);
         }
@@ -483,14 +444,14 @@ class WP_Object_Cache {
      * @param  string $group Cache group.
      * @return bool        true if the group is persistent, false if not.
      */
-    protected function _should_persist($group) {
+    private function should_persist($group) {
         return empty($this->non_persistent_groups[$group]);
     }
 
     /**
      * Wrapper method for connecting to Redis, which lets us retry the connection
      */
-    protected function _connect_redis() {
+    private function connect_redis() {
         global $redis_server;
 
         $check_dependencies = [$this, 'check_client_dependencies'];
@@ -518,7 +479,7 @@ class WP_Object_Cache {
             $client_connection = apply_filters('wp_redis_prepare_client_connection_callback', $client_connection);
             $this->redis       = call_user_func_array($client_connection, [$client_parameters]);
         } catch (Exception $e) {
-            $this->_exception_handler($e);
+            $this->exception_handler($e);
             $this->is_redis_connected = false;
             return $this->is_redis_connected;
         }
@@ -538,7 +499,7 @@ class WP_Object_Cache {
             $setup_connection = apply_filters('wp_redis_perform_client_connection_callback', $setup_connection);
             call_user_func_array($setup_connection, [$this->redis, $client_parameters, $keys_methods]);
         } catch (Exception $e) {
-            $this->_exception_handler($e);
+            $this->exception_handler($e);
             $this->is_redis_connected = false;
             return $this->is_redis_connected;
         }
@@ -655,7 +616,7 @@ class WP_Object_Cache {
      */
     public function exception_message_matches($error, $errors) {
         foreach ($errors as $message) {
-            $pattern = $this->_format_message_for_pattern($message);
+            $pattern = $this->format_message_for_pattern($message);
             $matches = (bool) preg_match($pattern, $error);
             if ($matches) {
                 return true;
@@ -670,7 +631,7 @@ class WP_Object_Cache {
      * @param string $message Potential regex string that may need '/'
      * @return string Regex pattern
      */
-    protected function _format_message_for_pattern($message) {
+    private function format_message_for_pattern($message) {
         $var = $message;
         $var = '/' === $var[0] ? $var : '/' . $var;
         $var = '/' === $var[strlen($var) - 1] ? $var : $var . '/';
@@ -683,7 +644,7 @@ class WP_Object_Cache {
      * @param Exception $exception
      * @return null
      */
-    protected function _exception_handler($exception) {
+    private function exception_handler($exception) {
         try {
             $this->last_triggered_error = 'WP Redis: ' . $exception->getMessage();
             // Be friendly to developers debugging production servers by triggering an error
@@ -750,7 +711,7 @@ class WP_Object_Cache {
     }
 
     public function is_connected() {
-        return $this->_call_redis('isConnected');
+        return $this->call_redis('isConnected');
     }
 
     private static function debug($message, ...$params) {
@@ -790,7 +751,7 @@ class WP_Object_Cache {
                         'calculated' => $hash,
                         'returned' => $res_hash,
                     ]);
-                    $this->_call_redis('close');
+                    $this->call_redis('close');
                 }
                 self::debug('loaded a Lua script', $file);
                 return;
@@ -806,10 +767,6 @@ class WP_Object_Cache {
         return is_object($data) ? clone $data : $data;
     }
 
-    protected function _should_use_redis_hashes($group) {
-        return false;
-    }
-
     /**
      * Utility function to generate the redis key for a given key and group.
      *
@@ -817,7 +774,7 @@ class WP_Object_Cache {
      * @param  string $group The cache group.
      * @return string        A properly prefixed redis cache key.
      */
-    protected function _key($key = '', $group = 'default') {
+    public function key($key = '', $group = 'default') {
         if (empty($group)) {
             $group = 'default';
         }
@@ -834,16 +791,6 @@ class WP_Object_Cache {
 
         return WP_CACHE_KEY_SALT .
             json_encode([strval($prefix), strval($group), strval($key)]);
-    }
-
-    // This function is primarily for testing.
-    public function redis_key($key = '', $group = 'default') {
-        return $this->_key($key, $group);
-    }
-
-    // This function is primarily for testing.
-    public function version_key($key = '', $group = 'default') {
-        return $this->_version_key($key, $group);
     }
 
     // This feature is not supported.
@@ -913,7 +860,7 @@ class WP_Object_Cache {
         global $redis_server_versioning_keys;
         foreach ($redis_server_versioning_keys as $gkey => $group) {
             foreach (array_keys($group) as $key) {
-                $this->versioned_redis_keys[$this->_key($key, $gkey)] = true;
+                $this->versioned_redis_keys[$this->key($key, $gkey)] = true;
             }
         }
     }
@@ -942,7 +889,7 @@ class WP_Object_Cache {
         $this->multisite   = is_multisite();
         $this->blog_prefix = $this->multisite ? $blog_id . ':' : '';
 
-        if (!$this->_connect_redis() && function_exists('add_action')) {
+        if (!$this->connect_redis() && function_exists('add_action')) {
             add_action('admin_notices', [$this, 'wp_action_admin_notices_warn_missing_redis']);
         }
 
@@ -960,7 +907,7 @@ class WP_Object_Cache {
             $this->do_redis_failback_flush = (bool) $wpdb->get_results("SELECT {$col2} FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
             // @codingStandardsIgnoreEnd
             if ($this->is_redis_connected && $this->do_redis_failback_flush) {
-                $ret = $this->_call_redis('flushdb');
+                $ret = $this->call_redis('flushdb');
                 if ($ret) {
                     // @codingStandardsIgnoreStart
                     $wpdb->query("DELETE FROM {$table} WHERE {$col1}='wp_redis_do_redis_failback_flush'");
@@ -1001,7 +948,7 @@ class WP_Object_Cache {
         return isset($this->versions[$redis_key]) ? $this->versions[$redis_key] : null;
     }
 
-    protected function _version_key($key = '', $group = 'default') {
+    public function version_key($key = '', $group = 'default') {
         if (empty($group)) {
             $group = 'default';
         }
@@ -1052,17 +999,17 @@ class WP_Object_Cache {
             if ($opt) {
                 $ps[] = $opt;
             }
-            return $this->_call_redis('set', ...$ps);
+            return $this->call_redis('set', ...$ps);
         }
 
         $new_version = $this->generate_version();
 
-        $result = $this->_call_redis(
+        $result = $this->call_redis(
             'evalSha',
             self::$lua_scripts['set']['hash'],
             [
                 $redis_key,
-                $this->_version_key($key, $group),
+                $this->version_key($key, $group),
                 $this->get_cache_version($redis_key) ?? '',
                 $new_version,
                 $params['value'],
@@ -1077,7 +1024,7 @@ class WP_Object_Cache {
 
         if ($result === false) {
             $this->clear_cache_version($redis_key);
-            $this->_unset_internal($key, $group);
+            $this->unset_internal($key, $group);
             $this->debug('found inconsistent update during SET operation', $redis_key);
             return false;
         }
@@ -1122,13 +1069,13 @@ class WP_Object_Cache {
             return true;
         }
 
-        if (!$this->_should_persist($group)) {
-            $this->_set_internal($key, $group, self::clone($data));
+        if (!$this->should_persist($group)) {
+            $this->set_internal($key, $group, self::clone($data));
             return true;
         }
 
         $set_params = $this->new_set_param(
-            $this->_key($key, $group),
+            $this->key($key, $group),
             self::encode_redis_string($data),
         );
         if ($expire) {
@@ -1137,9 +1084,9 @@ class WP_Object_Cache {
         $succeeded = $this->call_set($key, $group, $set_params);
 
         if ($succeeded) {
-            $this->_set_internal($key, $group, self::clone($data));
+            $this->set_internal($key, $group, self::clone($data));
         } else {
-            $this->_unset_internal($key, $group);
+            $this->unset_internal($key, $group);
         }
 
         return $succeeded;
@@ -1169,12 +1116,12 @@ class WP_Object_Cache {
             return false;
         }
 
-        if (!$this->_should_persist($group)) {
+        if (!$this->should_persist($group)) {
             return false;
         }
 
         $set_params = $this->new_set_param(
-            $this->_key($key, $group),
+            $this->key($key, $group),
             self::encode_redis_string($data),
         );
         $set_params['xx'] = true;
@@ -1184,9 +1131,9 @@ class WP_Object_Cache {
         $succeeded = $this->call_set($key, $group, $set_params);
 
         if ($succeeded) {
-            $this->_set_internal($key, $group, self::clone($data));
+            $this->set_internal($key, $group, self::clone($data));
         } else {
-            $this->_unset_internal($key, $group);
+            $this->unset_internal($key, $group);
         }
 
         return $succeeded;
@@ -1218,31 +1165,31 @@ class WP_Object_Cache {
         }
 
         // Key is set internally, so we can use this value
-        if ($this->_isset_internal($key, $group) && !$force) {
+        if ($this->isset_internal($key, $group) && !$force) {
             $found = true;
-            return $this->_get_internal($key, $group);
+            return $this->get_internal($key, $group);
         }
 
         // Not a persistent group, so don't try Redis if the value doesn't exist
         // internally
-        if (!$this->_should_persist($group)) {
+        if (!$this->should_persist($group)) {
             $found = false;
             return false;
         }
 
         try {
-            $redis_key = $this->_key($key, $group);
+            $redis_key = $this->key($key, $group);
 
             if (!$this->should_version($redis_key)) {
                 list($value, $found) = self::decode_redis_get(
-                    $this->_call_redis('get', $redis_key),
+                    $this->call_redis('get', $redis_key),
                 );
                 return $value;
             }
 
-            $res = $this->_call_redis('mget', [
+            $res = $this->call_redis('mget', [
                 $redis_key,
-                $this->_version_key($key, $group),
+                $this->version_key($key, $group),
             ]);
             if ($res === false) {
                 return false;
@@ -1259,9 +1206,9 @@ class WP_Object_Cache {
             return $value;
         } finally {
             if ($found) {
-                $this->_set_internal($key, $group, $value);
+                $this->set_internal($key, $group, $value);
             } else {
-                $this->_unset_internal($key, $group);
+                $this->unset_internal($key, $group);
             }
         }
     }
@@ -1283,7 +1230,7 @@ class WP_Object_Cache {
                 $should_version_flags[] = $should_version;
                 $redis_params[] = $redis_key;
                 if ($should_version) {
-                    $redis_params[] = $this->_version_key($group_key[1], $group_key[0]);
+                    $redis_params[] = $this->version_key($group_key[1], $group_key[0]);
                 }
                 return;
             },
@@ -1292,7 +1239,7 @@ class WP_Object_Cache {
         );
 
         $res_count = 0;
-        $res_array = $this->_call_redis('mget', $redis_params);
+        $res_array = $this->call_redis('mget', $redis_params);
         if ($res_array === false) {
             return array_fill(0, count($redis_keys), false);
         }
@@ -1335,9 +1282,9 @@ class WP_Object_Cache {
 
     public function normalized_get_multiple($groups, $force = false) {
         $get_from_cache = function ($key, $group) {
-            $found = $this->_isset_internal($key, $group);
+            $found = $this->isset_internal($key, $group);
 
-            return [$found ? $this->_get_internal($key, $group) : null, $found];
+            return [$found ? $this->get_internal($key, $group) : null, $found];
         };
 
         if (empty($groups) || !is_array($groups)) {
@@ -1353,7 +1300,7 @@ class WP_Object_Cache {
                 $group = 'default';
             }
 
-            if (!$this->_should_persist($group)) {
+            if (!$this->should_persist($group)) {
                 foreach ($keys as $key) {
                     if ($this->is_ignored($key, $group)) {
                         continue;
@@ -1371,12 +1318,12 @@ class WP_Object_Cache {
                     continue;
                 }
 
-                if (!$force && $this->_isset_internal($key, $group)) {
-                    $cache[$group][$key] = $this->_get_internal($key, $group);
+                if (!$force && $this->isset_internal($key, $group)) {
+                    $cache[$group][$key] = $this->get_internal($key, $group);
                     continue;
                 }
 
-                $redis_keys[] = $this->_key($key, $group);
+                $redis_keys[] = $this->key($key, $group);
                 $redis_group_key_indexes[] = [$group, $key];
             }
         }
@@ -1391,7 +1338,7 @@ class WP_Object_Cache {
 
                     if ($found) {
                         $cache[$group][$key] = $value;
-                        $this->_set_internal($key, $group, $value);
+                        $this->set_internal($key, $group, $value);
                     }
 
                     return null;
@@ -1424,21 +1371,21 @@ class WP_Object_Cache {
         }
 
         try {
-            if (!$this->_should_persist($group)) {
+            if (!$this->should_persist($group)) {
                 return true;
             }
 
-            $redis_key = $this->_key($key, $group);
+            $redis_key = $this->key($key, $group);
 
             if (!$this->should_version($redis_key)) {
-                return self::decode_redis_del($this->_call_redis('del', $redis_key)) == 1;
+                return self::decode_redis_del($this->call_redis('del', $redis_key)) == 1;
             }
 
             $this->clear_cache_version($redis_key);
-            $res = $this->_call_redis('del', [$redis_key, $this->_version_key($key, $group)]);
+            $res = $this->call_redis('del', [$redis_key, $this->version_key($key, $group)]);
             return 0 < self::decode_redis_del($res);
         } finally {
-            $this->_unset_internal($key, $group);
+            $this->unset_internal($key, $group);
         }
     }
 
@@ -1485,12 +1432,12 @@ class WP_Object_Cache {
             return true;
         }
 
-        if (!$this->_should_persist($group)) {
+        if (!$this->should_persist($group)) {
             return false;
         }
 
         $set_params = $this->new_set_param(
-            $this->_key($key, $group),
+            $this->key($key, $group),
             self::encode_redis_string($data),
         );
         $set_params['nx'] = true;
@@ -1500,9 +1447,9 @@ class WP_Object_Cache {
         $succeeded = $this->call_set($key, $group, $set_params);
 
         if ($succeeded) {
-            $this->_set_internal($key, $group, self::clone($data));
+            $this->set_internal($key, $group, self::clone($data));
         } else {
-            $this->_unset_internal($key, $group);
+            $this->unset_internal($key, $group);
         }
 
         return $succeeded;
@@ -1528,12 +1475,12 @@ class WP_Object_Cache {
         $offset = (int) $offset;
 
         // If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-        if (!$this->_should_persist($group)) {
-            if (!$this->_isset_internal($key, $group)) {
+        if (!$this->should_persist($group)) {
+            if (!$this->isset_internal($key, $group)) {
                 return false;
             }
 
-            $existing = $this->_get_internal($key, $group);
+            $existing = $this->get_internal($key, $group);
             if (!is_numeric($existing)) {
                 $existing = 0;
             } else {
@@ -1542,19 +1489,19 @@ class WP_Object_Cache {
             if ($existing < 0) {
                 $existing = 0;
             }
-            $this->_set_internal($key, $group, $existing);
+            $this->set_internal($key, $group, $existing);
             return $existing;
         }
 
-        $result = $this->_call_redis(
+        $result = $this->call_redis(
             'evalSha',
             self::$lua_scripts['decr-by-nover']['hash'],
-            [$this->_key($key, $group), $offset],
+            [$this->key($key, $group), $offset],
             1,
         );
 
         if (is_int($result)) {
-            $this->_set_internal($key, $group, $result);
+            $this->set_internal($key, $group, $result);
         }
         return $result;
     }
@@ -1579,12 +1526,12 @@ class WP_Object_Cache {
         $offset = (int) $offset;
 
         // If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-        if (!$this->_should_persist($group)) {
-            if (!$this->_isset_internal($key, $group)) {
+        if (!$this->should_persist($group)) {
+            if (!$this->isset_internal($key, $group)) {
                 return false;
             }
 
-            $existing = $this->_get_internal($key, $group);
+            $existing = $this->get_internal($key, $group);
             if (!is_numeric($existing)) {
                 $existing = 1;
             } else {
@@ -1593,19 +1540,19 @@ class WP_Object_Cache {
             if ($existing < 0) {
                 $existing = 0;
             }
-            $this->_set_internal($key, $group, $existing);
+            $this->set_internal($key, $group, $existing);
             return $existing;
         }
 
-        $result = $this->_call_redis(
+        $result = $this->call_redis(
             'evalSha',
             self::$lua_scripts['incr-by-nover']['hash'],
-            [$this->_key($key, $group), $offset],
+            [$this->key($key, $group), $offset],
             1,
         );
 
         if (is_int($result)) {
-            $this->_set_internal($key, $group, $result);
+            $this->set_internal($key, $group, $result);
         }
         return $result;
     }
@@ -1626,7 +1573,7 @@ class WP_Object_Cache {
         $this->flush_cache_versions();
         $this->cache = [];
         if ($redis) {
-            $this->_call_redis('flushdb');
+            $this->call_redis('flushdb');
         }
 
         return true;
@@ -1640,7 +1587,7 @@ class WP_Object_Cache {
      * @param mixed $args
      * @return mixed
      */
-    public function _call_redis($method) {
+    public function call_redis($method) {
         global $wpdb;
 
         $arguments = func_get_args();
@@ -1665,12 +1612,12 @@ class WP_Object_Cache {
                 // To prevent WordPress from fataling, we catch the Exception.
                 if ($this->exception_message_matches($e->getMessage(), $retry_exception_messages)) {
 
-                    $this->_exception_handler($e);
+                    $this->exception_handler($e);
 
                     // Attempt to refresh the connection if it was successfully established once
-                    // $this->is_redis_connected will be set inside _connect_redis()
-                    if ($this->_connect_redis()) {
-                        return call_user_func_array([$this, '_call_redis'], array_merge([$method], $arguments));
+                    // $this->is_redis_connected will be set inside connect_redis()
+                    if ($this->connect_redis()) {
+                        return call_user_func_array([$this, 'call_redis'], array_merge([$method], $arguments));
                     }
                     // Fall through to fallback below
                 } else {
@@ -1704,7 +1651,7 @@ class WP_Object_Cache {
                 $val    = $val + $offset;
                 return $val;
             case 'hIncrBy':
-                $val = $this->_get_internal($arguments[1], $group);
+                $val = $this->get_internal($arguments[1], $group);
                 return $val + $arguments[2];
             case 'decrBy':
             case 'decr':

@@ -50,15 +50,15 @@ abstract class ObjectCacheTestCase extends TestCase {
             $this->next_versioning_keys ?? $redis_server_default_versioning_keys;
         $this->next_versioning_keys = null;
         $redis_server_ignored_keys = [$this::IGN_GROUP => [$this::IGN_KEY => true]];
-        $wp_object_cache = new TaroskyObjectCache();
+        $wp_object_cache = new WP_Object_Cache();
         $this->oc1 = $wp_object_cache;
-        $this->oc2 = new TaroskyObjectCache();
-        $this->oc3 = new TaroskyObjectCache();
+        $this->oc2 = new WP_Object_Cache();
+        $this->oc3 = new WP_Object_Cache();
         $this->old_version = self::UNUSED_DUMMY_VERSION;
     }
 
     protected function assertRedisEquals($expected, $key, $group = 'default') {
-        list($actual, $found) = TaroskyObjectCache::decode_redis_get(
+        list($actual, $found) = WP_Object_Cache::decode_redis_get(
             self::$redis->get($this->redis_key($key, $group)),
         );
         $this->assertTrue($found);

@@ -17,7 +17,8 @@ class AlloptionsTest extends ObjectCacheTestCase {
     public function testEmptyValuePrecondition() {
         self::$redis->set(
             $this->oc1->version_key(self::KEY),
-            $this->oc1->generate_version());
+            $this->oc1->generate_version()
+        );
 
         $this->assertFalse($this->oc1->get(self::KEY, '', true));
         $this->assertTrue($this->oc1->add(self::KEY, self::VAL));
@@ -26,7 +27,8 @@ class AlloptionsTest extends ObjectCacheTestCase {
     public function testEmptyVersionPrecondition() {
         self::$redis->set(
             $this->oc1->redis_key(self::KEY),
-            TaroskyObjectCache::encode_redis_string(self::VAL_SUP));
+            WP_Object_Cache::encode_redis_string(self::VAL_SUP)
+        );
 
         $this->assertEquals(self::VAL_SUP, $this->oc1->get(self::KEY, '', true));
     }

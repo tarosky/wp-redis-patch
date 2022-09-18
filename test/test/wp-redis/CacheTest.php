@@ -8,9 +8,13 @@ class CacheTest extends CacheTestCase {
     public function &init_cache() {
         $orig_cache = &parent::init_cache();
 
-        $this->cache = new TaroskyObjectCache();
+        $this->cache = new WP_Object_Cache();
         $this->cache->global_groups = $orig_cache->global_groups;
         return $this->cache;
+    }
+
+    public function test_loaded() {
+        $this->markTestSkipped('This feature is not supported.');
     }
 
     public function test_delete_group() {
@@ -22,6 +26,10 @@ class CacheTest extends CacheTestCase {
     }
 
     public function test_wp_cache_delete_group() {
+        $this->markTestSkipped('This feature is not supported.');
+    }
+
+    public function test_wp_redis_get_info() {
         $this->markTestSkipped('This feature is not supported.');
     }
 

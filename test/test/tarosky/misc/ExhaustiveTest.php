@@ -25,7 +25,7 @@ class ExhaustiveTest extends ExhaustiveOCTestCase {
                 ];
             }
         }
-        usort($values, function($a, $b) {
+        usort($values, function ($a, $b) {
             return $a[1] - $b[1];
         });
         $res = [];
@@ -43,7 +43,7 @@ class ExhaustiveTest extends ExhaustiveOCTestCase {
                 self::createOCGenerator(),
                 self::createOCGenerator(),
             )
-        )->disableShrinking()->then(function($indexes) {
+        )->disableShrinking()->then(function ($indexes) {
             $order_list = self::ordering($indexes);
             $ocstates = array_fill(0, 3, true);
 
@@ -53,9 +53,9 @@ class ExhaustiveTest extends ExhaustiveOCTestCase {
 
             self::$redis->flushdb();
             $this->ocs = [
-                new TaroskyObjectCache(),
-                new TaroskyObjectCache(),
-                new TaroskyObjectCache(),
+                new WP_Object_Cache(),
+                new WP_Object_Cache(),
+                new WP_Object_Cache(),
             ];
             foreach ($order_list as $i) {
                 if ($ocstates[$i]) {

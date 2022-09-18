@@ -9,7 +9,7 @@ define('TAROSKY_WP_REDIS_PATCH_DEBUG', false);
 define('TAROSKY_WP_REDIS_PATCH_LUA_DIR', getcwd() . '/lua');
 
 $redis_server_default_versioning_keys = [
-    'default' => [ 'alloptions' => true ],
+    'default' => ['alloptions' => true],
 ];
 
 require_once '/code/object-cache.php';

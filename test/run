@@ -8,22 +8,6 @@ display_errors = on
 error_reporting = E_ALL
 EOF
 
-# php -i
-
-# Generate a patch for pantheon-systems/wp-redis.
-# This is not a part of testing, but just for convenience.
-tmp_new_oc="$(mktemp)"
-cp /src/wp-redis/object-cache.php "$tmp_new_oc"
-sed -i 's/new WP_Object_Cache/new TaroskyObjectCache/g' "$tmp_new_oc"
-
-# diff returns 1 if different.
-set +e
-diff -u \
-  --label object-cache.php \
-  --label object-cache.php \
-  /src/wp-redis/object-cache.php "$tmp_new_oc" > /code/work/object-cache.php.patch
-set -e
-
 # Modify tests written by pantheon-systems/wp-redis.
 wp_redis_test=test/test/wp-redis/CacheTestCase.php
 tmp_cache="$(mktemp)"

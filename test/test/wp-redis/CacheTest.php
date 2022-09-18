@@ -607,10 +607,6 @@ class CacheTest extends WPRedisTestCase {
         $this->flush_cache();
     }
 
-    static function tearDownAfterClass(): void {
-        // No-op
-    }
-
     /**
      * Tests added by Tarosky
      */

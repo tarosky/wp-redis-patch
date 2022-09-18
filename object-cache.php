@@ -306,22 +306,6 @@ class WP_Object_Cache {
     var $cache = [];
 
     /**
-     * The amount of times the cache data was already stored in the cache.
-     *
-     * @access private
-     * @var int
-     */
-    var $cache_hits = 0;
-
-    /**
-     * Amount of times the cache did not have the request in cache
-     *
-     * @var int
-     * @access public
-     */
-    var $cache_misses = 0;
-
-    /**
      * The amount of times a request was made to Redis
      *
      * @access private
@@ -1233,59 +1217,51 @@ class WP_Object_Cache {
             return false;
         }
 
+        // Key is set internally, so we can use this value
+        if ($this->_isset_internal($key, $group) && !$force) {
+            $found = true;
+            return $this->_get_internal($key, $group);
+        }
+
+        // Not a persistent group, so don't try Redis if the value doesn't exist
+        // internally
+        if (!$this->_should_persist($group)) {
+            $found = false;
+            return false;
+        }
+
         try {
-            // Key is set internally, so we can use this value
-            if ($this->_isset_internal($key, $group) && !$force) {
-                $found = true;
-                return $this->_get_internal($key, $group);
+            $redis_key = $this->_key($key, $group);
+
+            if (!$this->should_version($redis_key)) {
+                list($value, $found) = self::decode_redis_get(
+                    $this->_call_redis('get', $redis_key),
+                );
+                return $value;
             }
 
-            // Not a persistent group, so don't try Redis if the value doesn't exist
-            // internally
-            if (!$this->_should_persist($group)) {
-                $found = false;
+            $res = $this->_call_redis('mget', [
+                $redis_key,
+                $this->_version_key($key, $group),
+            ]);
+            if ($res === false) {
                 return false;
             }
 
-            try {
-                $redis_key = $this->_key($key, $group);
-
-                if (!$this->should_version($redis_key)) {
-                    list($value, $found) = self::decode_redis_get(
-                        $this->_call_redis('get', $redis_key),
-                    );
-                    return $value;
-                }
-
-                $res = $this->_call_redis('mget', [
-                    $redis_key,
-                    $this->_version_key($key, $group),
-                ]);
-                if ($res === false) {
-                    return false;
-                }
-
-                [$res2, $actual_version] = $res;
-                if ($actual_version === false) {
-                    $this->clear_cache_version($redis_key);
-                } else {
-                    $this->set_cache_version($redis_key, $actual_version);
-                }
-
-                list($value, $found) = self::decode_redis_get($res2);
-                return $value;
-            } finally {
-                if ($found) {
-                    $this->_set_internal($key, $group, $value);
-                } else {
-                    $this->_unset_internal($key, $group);
-                }
+            [$res2, $actual_version] = $res;
+            if ($actual_version === false) {
+                $this->clear_cache_version($redis_key);
+            } else {
+                $this->set_cache_version($redis_key, $actual_version);
             }
+
+            list($value, $found) = self::decode_redis_get($res2);
+            return $value;
         } finally {
             if ($found) {
-                $this->cache_hits += 1;
+                $this->_set_internal($key, $group, $value);
             } else {
-                $this->cache_misses += 1;
+                $this->_unset_internal($key, $group);
             }
         }
     }
@@ -1361,12 +1337,6 @@ class WP_Object_Cache {
         $get_from_cache = function ($key, $group) {
             $found = $this->_isset_internal($key, $group);
 
-            if ($found) {
-                $this->cache_hits += 1;
-            } else {
-                $this->cache_misses += 1;
-            }
-
             return [$found ? $this->_get_internal($key, $group) : null, $found];
         };
 
@@ -1402,7 +1372,6 @@ class WP_Object_Cache {
                 }
 
                 if (!$force && $this->_isset_internal($key, $group)) {
-                    $this->cache_hits += 1;
                     $cache[$group][$key] = $this->_get_internal($key, $group);
                     continue;
                 }
@@ -1423,12 +1392,6 @@ class WP_Object_Cache {
                     if ($found) {
                         $cache[$group][$key] = $value;
                         $this->_set_internal($key, $group, $value);
-                    }
-
-                    if ($found) {
-                        $this->cache_hits += 1;
-                    } else {
-                        $this->cache_misses += 1;
                     }
 
                     return null;

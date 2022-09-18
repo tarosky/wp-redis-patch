@@ -1,7 +1,5 @@
 FROM php:7.4-cli
 
-ARG wp_redis_version
-
 WORKDIR /code
 
 RUN pecl install redis && \
@@ -12,9 +10,7 @@ RUN apt-get update && apt-get install -y \
   wait-for-it \
   wget
 COPY test/build /build
-RUN /build/download-oc "${wp_redis_version}"
 RUN /build/download-phpunit
-RUN /build/setup-wp
 RUN /build/install-composer
 RUN rm -fr /build
 

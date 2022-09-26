@@ -481,10 +481,10 @@ class WP_Object_Cache {
     }
 
     /**
-     * Compares individual message to list of messages.
+     * Check the error message and return true if the call is retriable.
      *
      * @param string $error Message to compare
-     * @return bool whether $error matches any items in $errors
+     * @return bool whether $error is retriable
      */
     public function is_retriable_error_message($error) {
         $retriable_error_messages = [
@@ -532,17 +532,6 @@ class WP_Object_Cache {
         } elseif (defined('WP_REDIS_DISABLE_FAILBACK_FLUSH') && WP_REDIS_DISABLE_FAILBACK_FLUSH) {
             return false;
         }
-        return true;
-    }
-
-    /**
-     * Will save the object cache before object is completely destroyed.
-     *
-     * Called upon object destruction, which should be when PHP ends.
-     *
-     * @return bool True value. Won't be used by PHP
-     */
-    public function __destruct() {
         return true;
     }
 
@@ -647,7 +636,7 @@ class WP_Object_Cache {
     }
 
     /**
-     * Constructs a PHPRedis Redis client.
+     * Constructs a PHPRedis client.
      *
      * @param array $client_parameters Parameters used to construct a Redis client.
      * @return Redis Redis client.
@@ -698,7 +687,6 @@ class WP_Object_Cache {
 
     public static function decode_redis_del($result) {
         if (!is_numeric($result)) {
-            self::error('unknown return value from del', $result);
             return 0;
         }
         return intval($result);
@@ -713,8 +701,8 @@ class WP_Object_Cache {
         }
     }
 
-    // Ignoring works as if the corresponding cache weren't there.
     private static function is_ignored($key, $group) {
+        // Ignoring works as if the corresponding cache weren't there.
         global $redis_server_ignored_keys;
         if (!$redis_server_ignored_keys) {
             $redis_server_ignored_keys = [];
@@ -765,12 +753,6 @@ class WP_Object_Cache {
 
         $this->global_prefix = ($this->multisite || defined('CUSTOM_USER_TABLE') && defined('CUSTOM_USER_META_TABLE')) ? '' : $table_prefix;
 
-        /**
-         * @todo This should be moved to the PHP4 style constructor, PHP5
-         * already calls __destruct()
-         */
-        register_shutdown_function([$this, '__destruct']);
-
         $this->init_versioned_redis_keys();
     }
 
@@ -809,8 +791,8 @@ class WP_Object_Cache {
             json_encode([strval($prefix), strval($group), strval($key)]);
     }
 
-    // Versions are expressed as UUID v4.
     public function generate_version() {
+        // Versions are expressed as UUID v4.
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
             random_int(0, 0xffff),
@@ -897,12 +879,7 @@ class WP_Object_Cache {
      * @param int $expire TTL for the data, in seconds
      * @return bool Always returns true
      */
-    public function set(
-        $key,
-        $data,
-        $group = 'default',
-        $expire = 0
-    ) {
+    public function set($key, $data, $group = 'default', $expire = 0) {
         if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
             return false;
         }
@@ -948,12 +925,7 @@ class WP_Object_Cache {
      * @param int $expire When to expire the cache contents
      * @return bool False if not exists, true if contents were replaced
      */
-    public function replace(
-        $key,
-        $data,
-        $group = 'default',
-        $expire = 0
-    ) {
+    public function replace($key, $data, $group = 'default', $expire = 0) {
         if (empty($group)) {
             $group = 'default';
         }
@@ -991,8 +963,6 @@ class WP_Object_Cache {
      * The contents will be first attempted to be retrieved by searching by the
      * key in the cache group. If the cache is hit (success) then the contents
      * are returned.
-     *
-     * On failure, the number of cache misses will be incremented.
      *
      * @param int|string $key What the contents in the cache are called
      * @param string $group Where the cache contents are grouped
@@ -1260,12 +1230,7 @@ class WP_Object_Cache {
      * @param int $expire When to expire the cache contents
      * @return bool False if cache key and group already exist, true on success
      */
-    public function add(
-        $key,
-        $data,
-        $group = 'default',
-        $expire = 0
-    ) {
+    public function add($key, $data, $group = 'default', $expire = 0) {
         if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
             return false;
         }
@@ -1406,25 +1371,13 @@ class WP_Object_Cache {
     /**
      * Clears the object cache of all data.
      *
-     * By default, this will flush the session cache as well as Redis, but we
-     * can leave the redis cache intact if we want. This is helpful when, for
-     * instance, you're running a batch process and want to clear the session
-     * store to reduce the memory footprint, but you don't want to have to
-     * re-fetch all the values from the database.
-     *
-     * @param  bool $redis Should we flush redis as well as the session cache?
-     * @return bool Always returns true
+     * @return bool True on success, false on failure.
      */
-    public function flush($redis = true) {
+    public function flush() {
         $this->flush_cache_versions();
         $this->cache = [];
-        if ($redis) {
-            $this->call_redis('flushdb');
-        }
-
-        return true;
+        return $this->call_redis('flushdb');
     }
-
 
     /**
      * Wrapper method for calls to Redis, which fails gracefully when Redis is unavailable
@@ -1478,20 +1431,7 @@ class WP_Object_Cache {
             $this->do_redis_failback_flush = true;
         }
 
-        // Mock expected behavior from Redis for these methods
-        switch ($method) {
-            case 'incr':
-                return $this->cache[$arguments[0]] + 1;
-            case 'decr':
-                return $this->cache[$arguments[0]] - 1;
-            case 'del':
-                return 1;
-            case 'flushdb':
-            case 'IsConnected':
-            case 'get':
-            case 'mget':
-                return false;
-        }
+        return false;
     }
 }
 

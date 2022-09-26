@@ -9,10 +9,6 @@ if (!defined('WP_CACHE_KEY_SALT')) {
     define('WP_CACHE_KEY_SALT', '');
 }
 
-if (!defined('WP_REDIS_DEFAULT_EXPIRE_SECONDS')) {
-    define('WP_REDIS_DEFAULT_EXPIRE_SECONDS', 0);
-}
-
 /**
  * Adds data to the cache, if the cache key doesn't already exist.
  *
@@ -25,7 +21,7 @@ if (!defined('WP_REDIS_DEFAULT_EXPIRE_SECONDS')) {
  * @param int $expire When the cache data should be expired
  * @return bool False if cache key and group already exist, true on success
  */
-function wp_cache_add($key, $data, $group = '', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
+function wp_cache_add($key, $data, $group = '', $expire = 0) {
     global $wp_object_cache;
 
     return $wp_object_cache->add($key, $data, $group, (int) $expire);
@@ -77,21 +73,6 @@ function wp_cache_delete($key, $group = '') {
 
     return $wp_object_cache->delete($key, $group);
 }
-
-/**
- * Removes cache contents for a given group.
- *
- * @uses $wp_object_cache Object Cache Class
- * @see WP_Object_Cache::delete_group()
- *
- * @param string $group Where the cache contents are grouped
- * @return bool True on successful removal, false on failure
- */
-function wp_cache_delete_group($group) {
-    global $wp_object_cache;
-    return $wp_object_cache->delete_group($group);
-}
-
 
 /**
  * Removes all cache items.
@@ -185,7 +166,7 @@ function wp_cache_init() {
  * @param int $expire When to expire the cache contents
  * @return bool False if not exists, true if contents were replaced
  */
-function wp_cache_replace($key, $data, $group = '', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
+function wp_cache_replace($key, $data, $group = '', $expire = 0) {
     global $wp_object_cache;
 
     return $wp_object_cache->replace($key, $data, $group, (int) $expire);
@@ -203,7 +184,7 @@ function wp_cache_replace($key, $data, $group = '', $expire = WP_REDIS_DEFAULT_E
  * @param int $expire When to expire the cache contents
  * @return bool False on failure, true on success
  */
-function wp_cache_set($key, $data, $group = '', $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS) {
+function wp_cache_set($key, $data, $group = '', $expire = 0) {
     global $wp_object_cache;
 
     return $wp_object_cache->set($key, $data, $group, (int) $expire);
@@ -632,11 +613,6 @@ class WP_Object_Cache {
             json_encode([strval($prefix), strval($group), strval($key)]);
     }
 
-    // This feature is not supported.
-    public function delete_group($group) {
-        return false;
-    }
-
     /**
      * Constructs a PHPRedis Redis client.
      *
@@ -892,7 +868,7 @@ class WP_Object_Cache {
         $key,
         $data,
         $group = 'default',
-        $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS
+        $expire = 0
     ) {
         if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
             return false;
@@ -943,7 +919,7 @@ class WP_Object_Cache {
         $key,
         $data,
         $group = 'default',
-        $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS
+        $expire = 0
     ) {
         if (empty($group)) {
             $group = 'default';
@@ -1255,7 +1231,7 @@ class WP_Object_Cache {
         $key,
         $data,
         $group = 'default',
-        $expire = WP_REDIS_DEFAULT_EXPIRE_SECONDS
+        $expire = 0
     ) {
         if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
             return false;

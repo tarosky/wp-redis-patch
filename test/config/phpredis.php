@@ -1,7 +1,6 @@
 <?php
 
 define('ABSPATH', '/wp/');
-define('WP_REDIS_PLUGIN_DIR', ABSPATH . 'wp-content/mu-plugins/wp-redis');
 
 define('WP_CACHE_KEY_SALT', 'oc:');
 define('WP_CACHE_VERSION_KEY_SALT', 'ocv:');
@@ -13,7 +12,6 @@ $redis_server_default_versioning_keys = [
 ];
 
 require_once '/code/object-cache.php';
-require_once WP_REDIS_PLUGIN_DIR . '/wp-redis.php';
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 

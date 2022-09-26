@@ -30,7 +30,12 @@ abstract class ObjectCacheTestCase extends TestCase {
         parent::setUpBeforeClass();
 
         global $redis_server;
-        $redis_server = ['host' => 'redis', 'port' => 6379];
+        $redis_server = [
+            'host' => 'redis',
+            'port' => 6379,
+            'timeout' => 1000,
+            'retry_interval' => 100,
+        ];
 
         self::$redis = new Redis();
         self::$redis->connect('redis');
@@ -59,7 +64,7 @@ abstract class ObjectCacheTestCase extends TestCase {
 
     protected function assertRedisEquals($expected, $key, $group = 'default') {
         list($actual, $found) = WP_Object_Cache::decode_redis_get(
-            self::$redis->get($this->redis_key($key, $group)),
+            self::$redis->get($this->key($key, $group)),
         );
         $this->assertTrue($found);
         $this->assertEquals($expected, $actual);
@@ -75,13 +80,13 @@ abstract class ObjectCacheTestCase extends TestCase {
     }
 
     protected function assertRedisNonExistent($key, $group = 'default') {
-        $this->assertFalse(self::$redis->get($this->redis_key($key, $group)));
+        $this->assertFalse(self::$redis->get($this->key($key, $group)));
     }
 
-    protected function redis_key($key, $group = 'default') {
+    protected function key($key, $group = 'default') {
         global $wp_object_cache;
 
-        return $wp_object_cache->redis_key($key, $group);
+        return $wp_object_cache->key($key, $group);
     }
 
     protected function version_key($key, $group = 'default') {
@@ -114,21 +119,21 @@ abstract class ObjectCacheTestCase extends TestCase {
 
     protected function set_sup_value() {
         self::$redis->set(
-            $this->redis_key(self::KEY),
+            $this->key(self::KEY),
             self::encode_redis_string(self::VAL_SUP),
         );
     }
 
     protected function set_sup_2_value() {
         self::$redis->set(
-            $this->redis_key(self::KEY),
+            $this->key(self::KEY),
             self::encode_redis_string(self::VAL_SUP_2),
         );
     }
 
     protected function set_value() {
         self::$redis->set(
-            $this->redis_key(self::KEY),
+            $this->key(self::KEY),
             self::encode_redis_string(self::VAL),
         );
     }
@@ -138,6 +143,6 @@ abstract class ObjectCacheTestCase extends TestCase {
     }
 
     protected function del_val() {
-        self::$redis->del($this->redis_key(self::KEY));
+        self::$redis->del($this->key(self::KEY));
     }
 }

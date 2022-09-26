@@ -4,8 +4,6 @@ services:
     build:
       context: $PWD
       dockerfile: test/Dockerfile
-      args:
-        wp_redis_version: ${WP_REDIS_VERSION}
     volumes:
     - $PWD:/code
     depends_on:

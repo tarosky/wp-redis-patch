@@ -30,13 +30,7 @@ abstract class WPRedisTestCase extends TestCase {
     private static function wp_redis_flush_cache() {
         global $wp_object_cache;
 
-        $wp_object_cache->group_ops = [];
-        $wp_object_cache->stats = [];
-        $wp_object_cache->memcache_debug = [];
         $wp_object_cache->cache = [];
-        if (method_exists($wp_object_cache, '__remoteset')) {
-            $wp_object_cache->__remoteset();
-        }
         wp_cache_flush();
         wp_cache_add_global_groups([
             'users',

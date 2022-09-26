@@ -2,5 +2,4 @@
 
 set -eu
 
-WP_REDIS_VERSION="$(< env/wp_redis_version)" \
-  exec docker-compose -f test/docker-compose.yml build
+exec docker-compose -f test/docker-compose.yml build

@@ -8,13 +8,6 @@
 class CacheTest extends WPRedisTestCase {
     private $cache;
 
-    private static $client_parameters = [
-        'host'           => 'redis',
-        'port'           => 6379,
-        'timeout'        => 1000,
-        'retry_interval' => 100,
-    ];
-
     private function reset_cache_state() {
         $this->cache->redis_calls = [];
         $this->cache->cache = [];
@@ -28,6 +21,8 @@ class CacheTest extends WPRedisTestCase {
         $redis_server = [
             'host' => 'redis',
             'port' => 6379,
+            'timeout' => 1000,
+            'retry_interval' => 100,
         ];
 
         $wp_object_cache = new WP_Object_Cache;
@@ -64,24 +59,6 @@ class CacheTest extends WPRedisTestCase {
         return $cache;
     }
 
-    public function test_connection_details() {
-        $actual = $this->cache->build_client_parameters([
-            'host'      => '127.0.0.1',
-            'port'      => 6379,
-            'extra'     => true,
-            'recursive' => ['child' => true],
-        ]);
-
-        $this->assertEquals([
-            'host'           => '127.0.0.1',
-            'port'           => 6379,
-            'extra'          => true,
-            'recursive'      => ['child' => true],
-            'timeout'        => 1000,
-            'retry_interval' => 100,
-        ], $actual);
-    }
-
     public function test_redis_connected() {
         $this->assertTrue(isset($this->cache->redis));
         $this->assertTrue($this->cache->redis->IsConnected());
@@ -114,9 +91,8 @@ class CacheTest extends WPRedisTestCase {
         $this->expectWarning();
 
         $cache = new WP_Object_Cache;
-        $this->assertTrue($cache->exception_message_matches(
-            str_replace('WP Redis: ', '', $cache->last_triggered_error),
-            $cache->retry_exception_messages()
+        $this->assertTrue($cache->is_retriable_error_message(
+            str_replace('WP Redis: ', '', $cache->last_triggered_error)
         ));
         $this->assertFalse($cache->is_redis_connected);
         // Fails back to the internal object cache
@@ -471,20 +447,6 @@ class CacheTest extends WPRedisTestCase {
         $this->assertEquals($wp_object_cache->cache, $new_blank_cache_object->cache);
     }
 
-    public function test_redis_connect_custom_database() {
-        global $redis_server;
-
-        $redis_server['database'] = 2;
-        $second_cache             = new WP_Object_Cache;
-        $second_cache->flush(); // Make sure it's in pristine state.
-        $this->cache->set('foo', 'bar');
-        $this->assertEquals('bar', $this->cache->get('foo'));
-        $this->assertFalse($second_cache->get('foo'));
-        $second_cache->set('foo', 'apple');
-        $this->assertEquals('apple', $second_cache->get('foo'));
-        $this->assertEquals('bar', $this->cache->get('foo'));
-    }
-
     public function test_wp_cache_replace() {
         $key  = 'my-key';
         $val1 = 'first-val';
@@ -505,38 +467,6 @@ class CacheTest extends WPRedisTestCase {
 
         // Make sure $fake_key is not stored
         $this->assertFalse(wp_cache_get($fake_key));
-    }
-
-    public function test_dependencies() {
-        $this->assertTrue($this->cache->check_client_dependencies());
-    }
-
-    public function test_redis_client_connection() {
-        $redis = $this->cache->prepare_client_connection(self::$client_parameters);
-        $this->assertTrue($redis->isConnected());
-    }
-
-    public function test_setup_connection() {
-        $redis   = $this->cache->prepare_client_connection(self::$client_parameters);
-        $isSetUp = $this->cache->perform_client_connection($redis, [], []);
-        $this->assertTrue($isSetUp);
-    }
-
-    public function test_setup_connection_throws_exception() {
-        $redis = $this->getMockBuilder('Redis')->getMock();
-        $redis->method('select')->will($this->throwException(new RedisException));
-
-        $redis->connect(
-            self::$client_parameters['host'],
-            self::$client_parameters['port'],
-            self::$client_parameters['timeout'],
-            null,
-            self::$client_parameters['retry_interval']
-        );
-        $settings = ['database' => 2];
-        $keys_methods = ['database' => 'select'];
-        $this->setExpectedException('Exception');
-        $this->cache->perform_client_connection($redis, $settings, $keys_methods);
     }
 
     public function test_cache_key() {

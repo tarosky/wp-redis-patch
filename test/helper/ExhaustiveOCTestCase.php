@@ -14,7 +14,12 @@ abstract class ExhaustiveOCTestCase extends TestCase {
         parent::setUpBeforeClass();
 
         global $redis_server;
-        $redis_server = ['host' => 'redis', 'port' => 6379];
+        $redis_server = [
+            'host' => 'redis',
+            'port' => 6379,
+            'timeout' => 1000,
+            'retry_interval' => 100,
+        ];
 
         self::$redis = new Redis();
         self::$redis->connect('redis');

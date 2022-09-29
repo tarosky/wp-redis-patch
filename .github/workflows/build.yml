@@ -18,11 +18,11 @@ jobs:
         - '4'
         - '5'
         php-version:
-        - php: 7.3
+        - php: '7.3'
           phpunit: 9.3.9
-        - php: 7.4
+        - php: '7.4'
           phpunit: 9.3.9
-        - php: 8.0
+        - php: '8.0'
           phpunit: 9.3.9
     steps:
     - uses: actions/checkout@v2

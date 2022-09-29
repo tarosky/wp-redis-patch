@@ -17,8 +17,19 @@ jobs:
         redis-version:
         - '4'
         - '5'
+        php-version:
+        - php: 7.3
+          phpunit: 9.3.9
+        - php: 7.4
+          phpunit: 9.3.9
+        - php: 8.0
+          phpunit: 9.3.9
     steps:
     - uses: actions/checkout@v2
+    - name: Set PHP_VERSION
+      run: echo "PHP_VERSION=${{matrix.php-version.php}}" >> $GITHUB_ENV
+    - name: Set PHPUNIT_VERSION
+      run: echo "PHPUNIT_VERSION=${{matrix.php-version.phpunit}}" >> $GITHUB_ENV
     - name: Set REDIS_VERSION
       run: echo "REDIS_VERSION=${{matrix.redis-version}}" >> $GITHUB_ENV
     - name: Build docker image

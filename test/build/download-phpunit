@@ -2,5 +2,5 @@
 
 set -eux
 
-curl -fsSL https://phar.phpunit.de/phpunit-9.2.6.phar > /usr/local/bin/phpunit
+curl -fsSL "https://phar.phpunit.de/phpunit-$PHPUNIT_VERSION.phar" > /usr/local/bin/phpunit
 chmod +x /usr/local/bin/phpunit

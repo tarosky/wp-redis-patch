@@ -1,4 +1,5 @@
-FROM php:7.4-cli
+ARG PHP_VERSION
+FROM php:${PHP_VERSION}-cli
 
 WORKDIR /code
 
@@ -10,7 +11,11 @@ RUN apt-get update && apt-get install -y \
   wait-for-it \
   wget
 COPY test/build /build
+
+ARG PHPUNIT_VERSION
+ENV PHPUNIT_VERSION $PHPUNIT_VERSION
 RUN /build/download-phpunit
+
 RUN /build/install-composer
 RUN rm -fr /build
 

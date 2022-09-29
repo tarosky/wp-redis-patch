@@ -323,42 +323,42 @@ class WP_Object_Cache {
     /**
      * Holds the cached objects
      */
-    public array $cache = [];
+    public $cache = [];
 
     /**
      * The amount of times a request was made to Redis
      */
-    public array $redis_calls = [];
+    public $redis_calls = [];
 
     /**
      * List of global groups
      */
-    public array $global_groups = [];
+    public $global_groups = [];
 
     /**
      * List of non-persistent groups
      */
-    public array $non_persistent_groups = [];
+    public $non_persistent_groups = [];
 
     /**
      * The blog prefix to prepend to keys in non-global groups.
      */
-    public string $blog_prefix;
+    public $blog_prefix;
 
     /**
      * Whether or not Redis is connected
      */
-    public bool $is_redis_connected = false;
+    public $is_redis_connected = false;
 
     /**
      * Whether or not the object cache thinks Redis needs a flush
      */
-    public bool $do_redis_failback_flush = false;
+    public $do_redis_failback_flush = false;
 
     /**
      * The last triggered error
      */
-    public string $last_triggered_error = '';
+    public $last_triggered_error = '';
 
     /**
      * Sets the list of global groups.

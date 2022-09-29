@@ -4,6 +4,9 @@ services:
     build:
       context: $PWD
       dockerfile: test/Dockerfile
+      args:
+        PHP_VERSION: ${PHP_VERSION}
+        PHPUNIT_VERSION: ${PHPUNIT_VERSION}
     volumes:
     - $PWD:/code
     depends_on:

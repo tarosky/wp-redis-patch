@@ -319,6 +319,37 @@ if (!defined('WP_CACHE_VERSION_KEY_SALT')) {
     define('WP_CACHE_VERSION_KEY_SALT', 'version:');
 }
 
+class WP_Object_Cache_RedisCallException extends Exception {
+    protected $method;
+    protected $args;
+
+    public static function create($method, $args, $previous) {
+        $e = new self(
+            sprintf(
+                'Redis call failed: method: %s, args: %s, previous: %s',
+                $method,
+                var_export($args, true),
+                $previous->getMessage()
+            ),
+            $previous->getCode(),
+            $previous
+        );
+
+        $e->method = $method;
+        $e->args = $args;
+
+        return $e;
+    }
+
+    public function getMethod() {
+        return $this->method;
+    }
+
+    public function getArgs() {
+        return $this->args;
+    }
+}
+
 class WP_Object_Cache {
     /**
      * Holds the cached objects
@@ -359,6 +390,17 @@ class WP_Object_Cache {
      * The last triggered error
      */
     public $last_triggered_error = '';
+
+    /**
+     * Redis client
+     */
+    public $redis;
+
+    public $host;
+    public $port;
+    public $timeout;
+    public $retry_interval;
+    public $max_retries;
 
     /**
      * Sets the list of global groups.
@@ -466,10 +508,8 @@ class WP_Object_Cache {
      * Wrapper method for connecting to Redis, which lets us retry the connection
      */
     private function connect_redis() {
-        global $redis_server;
-
         try {
-            $this->redis = $this->prepare_client_connection($redis_server);
+            $this->redis = $this->prepare_client_connection();
         } catch (Exception $e) {
             $this->exception_handler($e);
             $this->is_redis_connected = false;
@@ -491,6 +531,7 @@ class WP_Object_Cache {
             'socket error on read socket',
             'Connection closed',
             'Redis server went away',
+            'read error on connection to',
         ];
 
         foreach ($retriable_error_messages as $msg) {
@@ -507,7 +548,7 @@ class WP_Object_Cache {
      * @param Exception $exception
      * @return null
      */
-    private function exception_handler($exception) {
+    protected function exception_handler($exception) {
         try {
             $this->last_triggered_error = 'WP Redis: ' . $exception->getMessage();
             // Be friendly to developers debugging production servers by triggering an error
@@ -641,15 +682,16 @@ class WP_Object_Cache {
      * @param array $client_parameters Parameters used to construct a Redis client.
      * @return Redis Redis client.
      */
-    public function prepare_client_connection($client_parameters) {
+    public function prepare_client_connection() {
         $redis_client = new Redis();
 
         $redis_client->connect(
-            $client_parameters['host'],
-            $client_parameters['port'],
-            $client_parameters['timeout'] / 1000,
-            null,
-            $client_parameters['retry_interval'],
+            $this->host, // host
+            $this->port, // port
+            $this->timeout / 1000, // timeout
+            null, // reserved
+            100, // retry_interval
+            $this->timeout / 1000, // read_timeout
         );
 
         $this->ensureLua($redis_client);
@@ -720,10 +762,16 @@ class WP_Object_Cache {
      * @return null|WP_Object_Cache If cache is disabled, returns null.
      */
     public function __construct() {
-        global $blog_id, $table_prefix, $wpdb;
+        global $blog_id, $table_prefix, $wpdb, $redis_server;
 
         $this->multisite   = is_multisite();
         $this->blog_prefix = $this->multisite ? $blog_id . ':' : '';
+
+        $this->host = $redis_server['host'];
+        $this->port = $redis_server['port'];
+        $this->timeout = $redis_server['timeout'] ?? 0;
+        $this->retry_interval = $redis_server['retry_interval'] ?? 1000;
+        $this->max_retries = $redis_server['max_retries'] ?? 3;
 
         $this->connect_redis();
 
@@ -827,27 +875,29 @@ class WP_Object_Cache {
             if ($opt) {
                 $ps[] = $opt;
             }
-            return $this->call_redis('set', ...$ps);
+            return $this->call_redis('set', $ps);
         }
 
         $new_version = $this->generate_version();
 
         $result = $this->call_redis(
             'evalSha',
-            self::$lua_scripts['set']['hash'],
             [
-                $redis_key,
-                $this->version_key($key, $group),
-                $this->get_cache_version($redis_key) ?? '',
-                $new_version,
-                $params['value'],
-                $params['ex'] ?? '',
-                $params['px'] ?? '',
-                var_export($params['nx'], true),
-                var_export($params['xx'], true),
-                var_export($params['keepttl'], true),
-            ],
-            2,
+                self::$lua_scripts['set']['hash'],
+                [
+                    $redis_key,
+                    $this->version_key($key, $group),
+                    $this->get_cache_version($redis_key) ?? '',
+                    $new_version,
+                    $params['value'],
+                    $params['ex'] ?? '',
+                    $params['px'] ?? '',
+                    var_export($params['nx'], true),
+                    var_export($params['xx'], true),
+                    var_export($params['keepttl'], true),
+                ],
+                2,
+            ]
         );
 
         if ($result === false) {
@@ -998,15 +1048,15 @@ class WP_Object_Cache {
 
             if (!$this->should_version($redis_key)) {
                 list($value, $found) = self::decode_redis_get(
-                    $this->call_redis('get', $redis_key),
+                    $this->call_redis('get', [$redis_key]),
                 );
                 return $value;
             }
 
-            $res = $this->call_redis('mget', [
+            $res = $this->call_redis('mget', [[
                 $redis_key,
                 $this->version_key($key, $group),
-            ]);
+            ]]);
             if ($res === false) {
                 return false;
             }
@@ -1055,7 +1105,7 @@ class WP_Object_Cache {
         );
 
         $res_count = 0;
-        $res_array = $this->call_redis('mget', $redis_params);
+        $res_array = $this->call_redis('mget', [$redis_params]);
         if ($res_array === false) {
             return array_fill(0, count($redis_keys), false);
         }
@@ -1194,7 +1244,7 @@ class WP_Object_Cache {
             $redis_key = $this->key($key, $group);
 
             if (!$this->should_version($redis_key)) {
-                return self::decode_redis_del($this->call_redis('del', $redis_key)) == 1;
+                return self::decode_redis_del($this->call_redis('del', [$redis_key])) == 1;
             }
 
             $this->clear_cache_version($redis_key);
@@ -1306,9 +1356,11 @@ class WP_Object_Cache {
 
         $result = $this->call_redis(
             'evalSha',
-            self::$lua_scripts['decr-by-nover']['hash'],
-            [$this->key($key, $group), $offset],
-            1,
+            [
+                self::$lua_scripts['decr-by-nover']['hash'],
+                [$this->key($key, $group), $offset],
+                1,
+            ]
         );
 
         if (is_int($result)) {
@@ -1357,9 +1409,11 @@ class WP_Object_Cache {
 
         $result = $this->call_redis(
             'evalSha',
-            self::$lua_scripts['incr-by-nover']['hash'],
-            [$this->key($key, $group), $offset],
-            1,
+            [
+                self::$lua_scripts['incr-by-nover']['hash'],
+                [$this->key($key, $group), $offset],
+                1,
+            ]
         );
 
         if (is_int($result)) {
@@ -1379,6 +1433,10 @@ class WP_Object_Cache {
         return $this->call_redis('flushdb');
     }
 
+    protected function call_redis_method($method, $args) {
+        return call_user_func_array([$this->redis, $method], $args);
+    }
+
     /**
      * Wrapper method for calls to Redis, which fails gracefully when Redis is unavailable
      *
@@ -1386,32 +1444,33 @@ class WP_Object_Cache {
      * @param mixed $args
      * @return mixed
      */
-    public function call_redis($method) {
+    public function call_redis($method, $args = [], $retry_count = 0) {
         global $wpdb;
 
-        $arguments = func_get_args();
-        array_shift($arguments); // ignore $method
-
         if ($this->is_redis_connected) {
+            if (!isset($this->redis_calls[$method])) {
+                $this->redis_calls[$method] = 0;
+            }
+            $this->redis_calls[$method]++;
+
             try {
-                if (!isset($this->redis_calls[$method])) {
-                    $this->redis_calls[$method] = 0;
-                }
-                $this->redis_calls[$method]++;
-                return call_user_func_array([$this->redis, $method], $arguments);
+                return $this->call_redis_method($method, $args);
             } catch (Exception $e) {
-                if ($this->is_retriable_error_message($e->getMessage())) {
-                    $this->exception_handler($e);
+                $e2 = WP_Object_Cache_RedisCallException::create($method, $args, $e);
+
+                // This retry mechanism handles failures Redis extension's retry mechanism cannot work with.
+                if ($this->is_retriable_error_message($e->getMessage()) && $retry_count < $this->max_retries) {
+                    $this->exception_handler($e2);
+                    usleep($this->retry_interval * 1000);
 
                     // Attempt to refresh the connection if it was successfully established once
                     // $this->is_redis_connected will be set inside connect_redis()
                     if ($this->connect_redis()) {
-                        return call_user_func_array([$this, 'call_redis'], array_merge([$method], $arguments));
+                        return call_user_func_array([$this, 'call_redis'], [$method, $args, $retry_count + 1]);
                     }
-                    // Fall through to fallback below
-                } else {
-                    throw $e;
                 }
+
+                throw $e2;
             }
         }
 

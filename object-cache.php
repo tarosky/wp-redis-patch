@@ -324,11 +324,12 @@ class WP_Object_Cache_RedisCallException extends Exception {
     protected $args;
 
     public static function create($method, $args, $previous) {
+        $arg_str = var_export($args, true);
         $e = new self(
             sprintf(
                 'Redis call failed: method: %s, args: %s, previous: %s',
                 $method,
-                var_export($args, true),
+                mb_strimwidth($arg_str, 0, 1024, '...') . '[' . mb_strlen($arg_str) . ' chars]',
                 $previous->getMessage()
             ),
             $previous->getCode(),
@@ -531,7 +532,6 @@ class WP_Object_Cache {
             'socket error on read socket',
             'Connection closed',
             'Redis server went away',
-            'read error on connection to',
         ];
 
         foreach ($retriable_error_messages as $msg) {
@@ -550,7 +550,7 @@ class WP_Object_Cache {
      */
     protected function exception_handler($exception) {
         try {
-            $this->last_triggered_error = 'WP Redis: ' . $exception->getMessage();
+            $this->last_triggered_error = 'WP Redis: ' . $exception->getMessage() . ": \n" . $exception->getTraceAsString();
             // Be friendly to developers debugging production servers by triggering an error
             // @codingStandardsIgnoreStart
             trigger_error($this->last_triggered_error, E_USER_WARNING);

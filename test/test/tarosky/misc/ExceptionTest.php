@@ -3,101 +3,101 @@
 use PHPUnit\Framework\TestCase;
 
 class ExceptionTest extends TestCase {
-    protected static $redis;
+	protected static $redis;
 
-    public static function setUpBeforeClass(): void {
-        parent::setUpBeforeClass();
+	public static function setUpBeforeClass(): void {
+		parent::setUpBeforeClass();
 
-        global $redis_server;
-        $redis_server = [
-            'host' => 'redis',
-            'port' => 6379,
-            'timeout' => 1000,
-            'retry_interval' => 100,
-        ];
+		global $redis_server;
+		$redis_server = array(
+			'host'           => 'redis',
+			'port'           => 6379,
+			'timeout'        => 1000,
+			'retry_interval' => 100,
+		);
 
-        self::$redis = new Redis();
-        self::$redis->connect('redis');
-    }
+		self::$redis = new Redis();
+		self::$redis->connect( 'redis' );
+	}
 
-    public function setUp(): void {
-        global $wp_object_cache;
+	public function setUp(): void {
+		global $wp_object_cache;
 
-        self::$redis->flushdb();
-        self::$redis->set('foo', 'bar');
-        $wp_object_cache = new ThrowOnGetObjectCache();
-    }
+		self::$redis->flushdb();
+		self::$redis->set( 'foo', 'bar' );
+		$wp_object_cache = new ThrowOnGetObjectCache();
+	}
 
-    public function testException() {
-        global $wp_object_cache;
+	public function testException() {
+		global $wp_object_cache;
 
-        try {
-            $wp_object_cache->call_redis('get', ['foo']);
-            $this->fail();
-        } catch (WP_Object_Cache_RedisCallException $e) {
-            $this->assertEquals('get', $e->getMethod());
-            $this->assertEquals(['foo'], $e->getArgs());
-            $this->assertStringContainsString('get', $e->getMessage());
-            $this->assertStringContainsString('foo', $e->getMessage());
-            $this->assertStringContainsString(
-                'default error message',
-                $e->getMessage()
-            );
-            $this->assertInstanceOf(RedisTestException::class, $e->getPrevious());
-            $this->assertEquals(0, $wp_object_cache->trigger_error_count);
-        }
-    }
+		try {
+			$wp_object_cache->call_redis( 'get', array( 'foo' ) );
+			$this->fail();
+		} catch ( WP_Object_Cache_RedisCallException $e ) {
+			$this->assertEquals( 'get', $e->getMethod() );
+			$this->assertEquals( array( 'foo' ), $e->getArgs() );
+			$this->assertStringContainsString( 'get', $e->getMessage() );
+			$this->assertStringContainsString( 'foo', $e->getMessage() );
+			$this->assertStringContainsString(
+				'default error message',
+				$e->getMessage()
+			);
+			$this->assertInstanceOf( RedisTestException::class, $e->getPrevious() );
+			$this->assertEquals( 0, $wp_object_cache->trigger_error_count );
+		}
+	}
 
-    public function testRetry1() {
-        global $wp_object_cache;
+	public function testRetry1() {
+		global $wp_object_cache;
 
-        $wp_object_cache->error_message = 'Connection closed';
-        $wp_object_cache->error_ifs = [true, false];
+		$wp_object_cache->error_message = 'Connection closed';
+		$wp_object_cache->error_ifs     = array( true, false );
 
-        $this->assertEquals('bar', $wp_object_cache->call_redis('get', ['foo']));
-        $this->assertEquals(1, $wp_object_cache->trigger_error_count);
-    }
+		$this->assertEquals( 'bar', $wp_object_cache->call_redis( 'get', array( 'foo' ) ) );
+		$this->assertEquals( 1, $wp_object_cache->trigger_error_count );
+	}
 
-    public function testRetry2() {
-        global $wp_object_cache;
+	public function testRetry2() {
+		global $wp_object_cache;
 
-        $wp_object_cache->error_message = 'Connection closed';
-        $wp_object_cache->error_ifs = [true, true, false];
+		$wp_object_cache->error_message = 'Connection closed';
+		$wp_object_cache->error_ifs     = array( true, true, false );
 
-        $this->assertEquals('bar', $wp_object_cache->call_redis('get', ['foo']));
-        $this->assertEquals(2, $wp_object_cache->trigger_error_count);
-    }
+		$this->assertEquals( 'bar', $wp_object_cache->call_redis( 'get', array( 'foo' ) ) );
+		$this->assertEquals( 2, $wp_object_cache->trigger_error_count );
+	}
 
-    public function testRetry3() {
-        global $wp_object_cache;
+	public function testRetry3() {
+		global $wp_object_cache;
 
-        $wp_object_cache->error_message = 'Connection closed';
-        $wp_object_cache->error_ifs = [true, true, true, false];
+		$wp_object_cache->error_message = 'Connection closed';
+		$wp_object_cache->error_ifs     = array( true, true, true, false );
 
-        $this->assertEquals('bar', $wp_object_cache->call_redis('get', ['foo']));
-        $this->assertEquals(3, $wp_object_cache->trigger_error_count);
-    }
+		$this->assertEquals( 'bar', $wp_object_cache->call_redis( 'get', array( 'foo' ) ) );
+		$this->assertEquals( 3, $wp_object_cache->trigger_error_count );
+	}
 
-    public function testRetry4() {
-        global $wp_object_cache;
+	public function testRetry4() {
+		global $wp_object_cache;
 
-        $wp_object_cache->error_message = 'Connection closed';
-        $wp_object_cache->error_ifs = [true, true, true, true, false];
+		$wp_object_cache->error_message = 'Connection closed';
+		$wp_object_cache->error_ifs     = array( true, true, true, true, false );
 
-        try {
-            $wp_object_cache->call_redis('get', ['foo']);
-            $this->fail();
-        } catch (WP_Object_Cache_RedisCallException $e) {
-            $this->assertEquals('get', $e->getMethod());
-            $this->assertEquals(['foo'], $e->getArgs());
-            $this->assertStringContainsString('get', $e->getMessage());
-            $this->assertStringContainsString('foo', $e->getMessage());
-            $this->assertStringContainsString(
-                'Connection closed',
-                $e->getMessage()
-            );
-            $this->assertInstanceOf(RedisTestException::class, $e->getPrevious());
-            $this->assertEquals(3, $wp_object_cache->trigger_error_count);
-        }
-    }
+		try {
+			$wp_object_cache->call_redis( 'get', array( 'foo' ) );
+			$this->fail();
+		} catch ( WP_Object_Cache_RedisCallException $e ) {
+			$this->assertEquals( 'get', $e->getMethod() );
+			$this->assertEquals( array( 'foo' ), $e->getArgs() );
+			$this->assertStringContainsString( 'get', $e->getMessage() );
+			$this->assertStringContainsString( 'foo', $e->getMessage() );
+			$this->assertStringContainsString(
+				'Connection closed',
+				$e->getMessage()
+			);
+			$this->assertInstanceOf( RedisTestException::class, $e->getPrevious() );
+			$this->assertEquals( 3, $wp_object_cache->trigger_error_count );
+		}
+	}
 }

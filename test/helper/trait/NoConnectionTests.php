@@ -1,9 +1,9 @@
 <?php
 
 trait NoConnectionTests {
-    public function testNoConnectionKept() {
-        $this->examined();
+	public function testNoConnectionKept() {
+		$this->examined();
 
-        $this->assertFalse($this->connection_kept());
-    }
+		$this->assertFalse( $this->connection_kept() );
+	}
 }

@@ -2,7 +2,7 @@
 
 set -eu
 
-PHP_VERSION=7.3 \
+PHP_VERSION=7.4 \
 PHPUNIT_VERSION=9.3.9 \
-REDIS_VERSION=5 \
+REDIS_VERSION=6 \
   exec docker-compose -f test/docker-compose.yml build

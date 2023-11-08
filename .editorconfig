@@ -8,6 +8,8 @@ indent_size = 2
 indent_style = space
 trim_trailing_whitespace = true
 
-[**.php]
+[*.php]
+indent_style = tab
+
+[{composer.json,phpcs.ruleset.xml}]
 indent_size = 4
-indent_style = space

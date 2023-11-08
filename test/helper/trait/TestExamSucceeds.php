@@ -1,7 +1,7 @@
 <?php
 
 trait TestExamSucceeds {
-    public function testExamSucceeds() {
-        $this->assertTrue($this->examined());
-    }
+	public function testExamSucceeds() {
+		$this->assertTrue( $this->examined() );
+	}
 }

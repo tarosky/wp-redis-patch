@@ -8,6 +8,7 @@ on:
     branches:
     - master
     - issue/*
+    - dev/*
 
 jobs:
   build:
@@ -34,6 +35,8 @@ jobs:
       run: echo "PHPUNIT_VERSION=${{matrix.php-version.phpunit}}" >> $GITHUB_ENV
     - name: Set REDIS_VERSION
       run: echo "REDIS_VERSION=${{matrix.redis-version}}" >> $GITHUB_ENV
+    - name: docker-compose version
+      run: docker-compose --version
     - name: Build docker image
       run: docker-compose -f test/docker-compose.yml build
     - name: Run PHPUnit inside Docker Compose

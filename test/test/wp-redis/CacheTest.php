@@ -70,10 +70,9 @@ class CacheTest extends WPRedisTestCase {
         $this->assertTrue($this->cache->redis->IsConnected());
         $this->assertTrue($this->cache->is_redis_connected);
         $this->assertEquals('bar', $this->cache->get('foo', 'default', true));
-        // Connection is closed, but automatic reconnection occurs.
+        // Connection is closed
         $this->cache->redis->close();
-        $this->assertTrue($this->cache->is_redis_connected);
-        $this->assertTrue($this->cache->redis->IsConnected());
+        $this->assertFalse($this->cache->redis->IsConnected());
         // Reload occurs with set()
         $this->cache->set('foo', 'banana');
         $this->assertEquals('banana', $this->cache->get('foo'));

@@ -1,7 +1,7 @@
 <?php
 
 trait ExamineCacheDelete {
-    protected function examined() {
-        return wp_cache_delete(self::KEY);
-    }
+	protected function examined() {
+		return wp_cache_delete( self::KEY );
+	}
 }

@@ -2,9 +2,9 @@
 
 set -u
 
-export PHP_VERSION=7.3
+export PHP_VERSION=7.4
 export PHPUNIT_VERSION=9.3.9
-export REDIS_VERSION=5
+export REDIS_VERSION=6
 
 docker-compose -f test/docker-compose.yml run php
 exit_code=$?

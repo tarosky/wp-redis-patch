@@ -1,11 +1,11 @@
 <?php
 
 trait ExamineGetMNoConnection {
-    protected function examined() {
-        global $wp_object_cache;
+	protected function examined() {
+		global $wp_object_cache;
 
-        $wp_object_cache->is_redis_connected = false;
+		$wp_object_cache->is_redis_connected = false;
 
-        return wp_cache_tarosky_get_multiple([self::GROUP => [self::KEY]]);
-    }
+		return wp_cache_tarosky_get_multiple( array( self::GROUP => array( self::KEY ) ) );
+	}
 }

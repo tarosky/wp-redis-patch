@@ -1,5 +1,43 @@
 {
+    "name": "tarosky/wp-redis-patch",
+    "type": "wordpress-dropin",
+    "description": "",
+    "homepage": "https://github.com/tarosky/wp-redis-patch",
+    "license": "GPL-2.0",
+    "authors": [
+        {
+            "name": "Harai Akihiro",
+            "email": "akihiro.harai@tarosky.co.jp",
+            "homepage": "https://tarosky.co.jp"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=7.4"
+    },
     "require-dev": {
-        "giorgiosironi/eris": "^0.13.0"
+        "giorgiosironi/eris": "^0.13.0",
+        "squizlabs/php_codesniffer": "*",
+        "wp-coding-standards/wpcs": "*",
+        "phpcompatibility/php-compatibility": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "*",
+        "phpcompatibility/phpcompatibility-wp": "*"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "lint": [
+            "phpcs --standard=phpcs.ruleset.xml $(find ./ -name '*.php')"
+        ],
+        "fix": [
+            "phpcbf --standard=phpcs.ruleset.xml $(find ./ -name '*.php')"
+        ]
+    },
+    "support": {
+        "issues": "https://github.com/tarosky/wp-redis-patch/issues"
     }
 }

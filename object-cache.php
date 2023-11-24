@@ -683,7 +683,9 @@ class WP_Object_Cache {  // phpcs:ignore
 	 * @return Redis Redis client.
 	 */
 	public function prepare_client_connection() {
-		$redis_client = new Redis();
+		$redis_client = defined( 'WP_CACHE_USE_RELAY' ) && constant( 'WP_CACHE_USE_RELAY' )
+			? new \Relay\Relay()
+			: new Redis();
 
 		$redis_client->connect(
 			$this->host, // host

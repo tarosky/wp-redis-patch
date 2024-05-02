@@ -11,5 +11,5 @@ trim_trailing_whitespace = true
 [*.php]
 indent_style = tab
 
-[{composer.json,phpcs.ruleset.xml}]
+[{composer.json,phpcs.xml}]
 indent_size = 4

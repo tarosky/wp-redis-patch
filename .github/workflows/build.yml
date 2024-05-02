@@ -24,7 +24,11 @@ jobs:
         - php: '8.0'
           phpunit: 9.3.9
         - php: '8.1'
-          phpunit: 9.6.13
+          phpunit: 9.6.19
+        - php: '8.2'
+          phpunit: 9.6.19
+        - php: '8.3'
+          phpunit: 9.6.19
     steps:
     - uses: actions/checkout@v2
     - name: Set PHP_VERSION

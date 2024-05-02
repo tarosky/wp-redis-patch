@@ -31,10 +31,10 @@
     },
     "scripts": {
         "lint": [
-            "phpcs --standard=phpcs.ruleset.xml $(find ./ -name '*.php')"
+            "phpcs --standard=phpcs.xml $(find ./ -name '*.php')"
         ],
         "fix": [
-            "phpcbf --standard=phpcs.ruleset.xml $(find ./ -name '*.php')"
+            "phpcbf --standard=phpcs.xml $(find ./ -name '*.php')"
         ]
     },
     "support": {

@@ -403,6 +403,9 @@ class WP_Object_Cache {  // phpcs:ignore
 	public $retry_interval;
 	public $max_retries;
 
+	private $multisite;
+	private $global_prefix;
+
 	/**
 	 * Sets the list of global groups.
 	 *
